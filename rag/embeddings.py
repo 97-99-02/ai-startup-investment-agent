@@ -20,7 +20,7 @@ def _device() -> str:
 class LocalEmbeddings(Embeddings):
     def __init__(self, model_name: str = EMBEDDING_MODEL):
         self.model = SentenceTransformer(model_name, device=_device())
-        self.query_kwargs = {"prompt_name": "query"} if "query" in (self.model.prompts or {}) else {}
+        self.query_kwargs = {"prompt_name": "query"} if (self.model.prompts or {}).get("query") else {}
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return self.model.encode(texts, batch_size=8, normalize_embeddings=True).tolist()

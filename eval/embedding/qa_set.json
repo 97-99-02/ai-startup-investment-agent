@@ -1,0 +1,352 @@
+[
+  {
+    "question": "2025년에 발표된 최신 GPU 인터커넥트 사양과 관련된 컨소시엄은 무엇이며, 이와 관련된 주요 발표 시점은 언제인가요?",
+    "gold_id": 175,
+    "doc_type": "tech",
+    "source": "etri218_hpc_proc.pdf",
+    "page": 13
+  },
+  {
+    "question": "AI 반도체 분야에서 MLIR과 MTIA가 각각 어떤 역할을 하며, 이들이 NPU와 어떻게 연관되는지 설명해 줄 수 있나요?",
+    "gold_id": 29,
+    "doc_type": "tech",
+    "source": "etri210_aichip_compiler.pdf",
+    "page": 10
+  },
+  {
+    "question": "X430 AI 반도체의 생산 공정과 출시 예정 시기는 어떻게 되며, 이를 통해 기대할 수 있는 주요 기술적 이점은 무엇인가요?",
+    "gold_id": 6,
+    "doc_type": "tech",
+    "source": "etri210_aichip_compiler.pdf",
+    "page": 3
+  },
+  {
+    "question": "SK하이닉스가 제안한 H3 아키텍처가 기존 HBM 단독 구성 대비 전력 효율성과 처리량 측면에서 어떤 개선을 가져오는지 설명해 달라.",
+    "gold_id": 203,
+    "doc_type": "tech",
+    "source": "etri220_aimemory_market.pdf",
+    "page": 8
+  },
+  {
+    "question": "LLM의 크기 증가와 처리 요구가 커짐에 따라 기업들이 LLM 추론을 위해 직면하는 주요 기술적 및 비용적 도전 과제는 무엇인가요?",
+    "gold_id": 76,
+    "doc_type": "tech",
+    "source": "etri216_chiplet_llm.pdf",
+    "page": 2
+  },
+  {
+    "question": "국내 자율주행차용 AI반도체 기업들이 현재 집중하고 있는 기술 개발 단계와, 글로벌 선도기업들과 비교했을 때 부족한 점은 무엇인가요?",
+    "gold_id": 67,
+    "doc_type": "tech",
+    "source": "etri215_auto_aichip.pdf",
+    "page": 12
+  },
+  {
+    "question": "자동차용 AI반도체 시장에서 자동차 데이터센터용 제품이 자동차 엣지 클라우드용 제품보다 시장 성장에 더 큰 영향을 미치는 이유는 무엇인가요?",
+    "gold_id": 62,
+    "doc_type": "tech",
+    "source": "etri215_auto_aichip.pdf",
+    "page": 10
+  },
+  {
+    "question": "자율주행차용 AI반도체 시장의 성장 가능성에 영향을 미치는 자율주행 시스템 아키텍처의 변화는 어떤 방향으로 진행되고 있나요?",
+    "gold_id": 37,
+    "doc_type": "tech",
+    "source": "etri215_auto_aichip.pdf",
+    "page": 2
+  },
+  {
+    "question": "HBF 메모리가 기존 HBM 메모리 대비 AI 추론 성능 향상에 어떤 점에서 기여할 것으로 예상되며, SK하이닉스가 제안한 H3 아키텍처는 이러한 메모리 기술 발전에 어떻게 대응하고 있나요?",
+    "gold_id": 202,
+    "doc_type": "tech",
+    "source": "etri220_aimemory_market.pdf",
+    "page": 8
+  },
+  {
+    "question": "국내 AI 반도체 개발을 주도하는 주요 기업들은 어디이며, 이들이 개발하는 기술이 AI 모델 성능 최적화에 어떻게 기여하는가?",
+    "gold_id": 27,
+    "doc_type": "tech",
+    "source": "etri210_aichip_compiler.pdf",
+    "page": 10
+  },
+  {
+    "question": "삼성전자가 2026년에 세계 최초로 양산한 HBM4 메모리의 데이터 처리 속도와 메모리 대역폭은 이전 세대 대비 어떻게 향상되었으며, 이러한 성능 개선이 AI 분야에 어떤 영향을 미칠 것으로 기대되는가?",
+    "gold_id": 187,
+    "doc_type": "tech",
+    "source": "etri220_aimemory_market.pdf",
+    "page": 3
+  },
+  {
+    "question": "중소벤처기업부가 2025년에 추진하는 AI 스타트업 지원 프로젝트의 주요 목표와 지원 내용은 무엇인가요?",
+    "gold_id": 262,
+    "doc_type": "tech",
+    "source": "kisdi_outlook21_ondevice.pdf",
+    "page": 22
+  },
+  {
+    "question": "과학기술정보통신부가 2025년 AI 반도체 분야에서 중점적으로 추진하는 데이터센터 중심의 기술개발 사업과 온디바이스 AI 반도체 실증 사업의 차별화된 지원 방향은 무엇인가?",
+    "gold_id": 251,
+    "doc_type": "tech",
+    "source": "kisdi_outlook21_ondevice.pdf",
+    "page": 16
+  },
+  {
+    "question": "AI 반도체 시스템에서 여러 연산 코어와 서버가 효과적으로 협력하기 위해 가장 중요한 기술적 요소는 무엇이며, 이 기술이 시스템 성능에 미치는 영향은 무엇인가요?",
+    "gold_id": 151,
+    "doc_type": "tech",
+    "source": "etri218_hpc_proc.pdf",
+    "page": 5
+  },
+  {
+    "question": "Glow 딥러닝 컴파일러가 딥러닝 모델의 실행 성능을 향상시키기 위해 사용하는 주요 최적화 기법들은 무엇인가요?",
+    "gold_id": 23,
+    "doc_type": "tech",
+    "source": "etri210_aichip_compiler.pdf",
+    "page": 8
+  },
+  {
+    "question": "AI 반도체에서 메모리 인터페이스 기술별로 목표 대역폭과 지연시간은 어떻게 차이가 있나요?",
+    "gold_id": 163,
+    "doc_type": "tech",
+    "source": "etri218_hpc_proc.pdf",
+    "page": 9
+  },
+  {
+    "question": "지각 특화 AI 반도체 시장 규모를 추정할 때 어떤 방법론을 사용하여 기존 시장조사 자료와 차별화했나요?",
+    "gold_id": 116,
+    "doc_type": "tech",
+    "source": "etri217_physicalai_chip.pdf",
+    "page": 6
+  },
+  {
+    "question": "리벨리온의 ATOM 칩이 어떤 제조 공정과 기술을 활용하여 다양한 컴퓨팅 환경에서 높은 추론 성능을 제공하는지 설명해 달라.",
+    "gold_id": 9,
+    "doc_type": "tech",
+    "source": "etri210_aichip_compiler.pdf",
+    "page": 4
+  },
+  {
+    "question": "이 AI 반도체들 중에서 가장 높은 메모리 대역폭을 가진 제품은 무엇이며, 그 메모리 종류와 용량은 어떻게 되는가?",
+    "gold_id": 7,
+    "doc_type": "tech",
+    "source": "etri210_aichip_compiler.pdf",
+    "page": 3
+  },
+  {
+    "question": "Glow 컴파일러가 다양한 하드웨어에서 AI 모델을 효율적으로 실행할 수 있도록 지원하는 주요 기능은 무엇인가요?",
+    "gold_id": 24,
+    "doc_type": "tech",
+    "source": "etri210_aichip_compiler.pdf",
+    "page": 9
+  },
+  {
+    "question": "국내 AI반도체 기업들이 현재 집중하고 있는 자율주행차용 AI반도체 개발 단계와, 고성능 학습-추론 통합 기능을 갖춘 제품의 상용화 현황은 어떠한가요?",
+    "gold_id": 60,
+    "doc_type": "tech",
+    "source": "etri215_auto_aichip.pdf",
+    "page": 9
+  },
+  {
+    "question": "자율주행차용 AI반도체 산업 활성화를 위해 제안된 3-Tier 전략의 구성 요소와 이를 국내 산업에 적용하기 위한 구체적인 방안은 무엇인가요?",
+    "gold_id": 64,
+    "doc_type": "tech",
+    "source": "etri215_auto_aichip.pdf",
+    "page": 11
+  },
+  {
+    "question": "최신 HPC 프로세서들이 AI 작업에 최적화되기 위해 채택하고 있는 주요 기술적 특징들은 무엇인가요?",
+    "gold_id": 140,
+    "doc_type": "tech",
+    "source": "etri218_hpc_proc.pdf",
+    "page": 1
+  },
+  {
+    "question": "NVIDIA의 슈퍼칩이 데이터 처리 효율성을 높이기 위해 적용한 칩 간 통신 및 메모리 공유 기술은 무엇이며, 이를 통해 어떤 이점이 발생하는가?",
+    "gold_id": 166,
+    "doc_type": "tech",
+    "source": "etri218_hpc_proc.pdf",
+    "page": 10
+  },
+  {
+    "question": "텔레칩스가 최근 발표한 차량용 AI 가속기가 미래차의 자율주행 기술 발전에 어떤 역할을 할 것으로 예상되나요?",
+    "gold_id": 263,
+    "doc_type": "tech",
+    "source": "kisdi_outlook21_ondevice.pdf",
+    "page": 22
+  },
+  {
+    "question": "AI 반도체 분야에서 10nm 이하 초미세 공정 시제품 제작을 위해 정부가 올해부터 확대하는 지원 규모는 얼마이며, 이 지원은 어떤 부처에서 담당하나요?",
+    "gold_id": 425,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 23
+  },
+  {
+    "question": "Cerebras의 2026년 1분기 매출에서 클라우드 및 기타 서비스가 차지하는 비중은 얼마이며, 이 부문의 매출 증가는 어떤 역할을 했나요?",
+    "gold_id": 322,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 31
+  },
+  {
+    "question": "한국 AI 반도체 분야의 기술 수준이 미국과 비교해 어떻게 변화하고 있으며, 현재 글로벌 순위는 어느 정도인가요?",
+    "gold_id": 421,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 21
+  },
+  {
+    "question": "뉴로모픽 반도체가 기존 AI 프로세서와 차별화되는 기술적 특징과 현재 상용화 전망은 어떠한가요?",
+    "gold_id": 389,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 11
+  },
+  {
+    "question": "Groq이 사우디에서 추진 중인 AI 데이터센터 사업의 주요 파트너와 그들이 제공하는 역할은 무엇인가요?",
+    "gold_id": 328,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 34
+  },
+  {
+    "question": "HBM 제품의 제조 난이도와 수율 개선이 기업 경쟁력에 미치는 영향은 무엇이며, 현재 주요 기업들의 시장 점유율은 어떻게 구성되어 있나요?",
+    "gold_id": 396,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 13
+  },
+  {
+    "question": "2025년 하반기 반도체 수출이 급증한 주요 원인은 무엇이며, 이로 인해 어떤 반도체 제품의 공급이 부족해졌나요?",
+    "gold_id": 432,
+    "doc_type": "market",
+    "source": "kita_semi_2026.pdf",
+    "page": 1
+  },
+  {
+    "question": "퓨리오사AI의 레니게이드 칩이 기존 GPU 대비 데이터센터 운영 비용 절감에 어떤 영향을 미치며, 향후 제품 라인업 확장 계획은 어떻게 되는가?",
+    "gold_id": 346,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 43
+  },
+  {
+    "question": "데이터센터 AI 반도체 시장에서 엔비디아가 AI 인프라 플랫폼 기업으로 진화하기 위해 추진하고 있는 주요 전략은 무엇인가요?",
+    "gold_id": 268,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 3
+  },
+  {
+    "question": "2023년에 TPU 제품 라인업이 어떻게 변화했으며, 각 제품의 특징은 무엇인가요?",
+    "gold_id": 312,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 25
+  },
+  {
+    "question": "AI 반도체에서 메모리 병목 현상을 해결하기 위해 현재 가장 적합한 메모리 기술은 무엇이며, 이 기술이 AI GPU와 NPU에 어떻게 적용되고 있나요?",
+    "gold_id": 390,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 11
+  },
+  {
+    "question": "투자자가 AI 반도체 시장에서 ASIC과 ASSP 제품의 차별화된 전략을 이해하기 위해, 구글과 엔비디아가 각각 어떤 유형의 AI 반도체를 개발 및 공급하고 있는지 설명해 줄 수 있나요?",
+    "gold_id": 367,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 2
+  },
+  {
+    "question": "중국 스마트폰 출하량이 2016년 이후 어떻게 변화해 왔으며, 2024년 4분기에는 어느 정도 수준으로 예상되나요?",
+    "gold_id": 442,
+    "doc_type": "market",
+    "source": "kita_semi_2026.pdf",
+    "page": 5
+  },
+  {
+    "question": "구글이 2026년에 공개할 8세대 TPU의 주요 변화는 무엇이며, 이로 인해 TPU 제품 라인업에 어떤 차별화가 이루어졌나요?",
+    "gold_id": 311,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 25
+  },
+  {
+    "question": "Groq가 AI 반도체 칩 판매를 중단하고 클라우드 기반 서비스로 전환한 이유와 그에 따른 사업 전략 변화는 무엇인가요?",
+    "gold_id": 327,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 34
+  },
+  {
+    "question": "AI 반도체가 학습용과 추론용으로 구분될 때, 각각의 용도에 따라 요구되는 주요 성능 차이는 무엇인가요?",
+    "gold_id": 366,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 2
+  },
+  {
+    "question": "엔비디아가 AI 인프라 플랫폼 기업으로 성장하기 위해 어떤 전략적 인수와 제품 개발을 진행했나요?",
+    "gold_id": 297,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 18
+  },
+  {
+    "question": "중동 국가들이 미국 AI반도체에 의존하면서 겪는 주요 위험 요소는 무엇인가요?",
+    "gold_id": 294,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 17
+  },
+  {
+    "question": "엔비디아 H100과 인텔 Gaudi2 AI 가속기의 GPT3 모델 학습 시간 차이는 어느 정도이며, 이 차이가 투자 결정에 어떤 영향을 미칠 수 있나요?",
+    "gold_id": 379,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 7
+  },
+  {
+    "question": "중동 국가들이 미국 클라우드 기업에 대한 의존도를 줄이기 위해 추진하는 협력 전략은 무엇인가요?",
+    "gold_id": 295,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 17
+  },
+  {
+    "question": "글로벌 AI 반도체 시장이 향후 5년간 어떤 성장률을 보일 것으로 예상되며, 주요 활용 분야의 변화 추세는 어떻게 되는가?",
+    "gold_id": 372,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 5
+  },
+  {
+    "question": "AI 반도체가 학습용과 추론용으로 구분되는 이유와 각 용도별로 요구되는 주요 성능 특성은 무엇인가요?",
+    "gold_id": 368,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 3
+  },
+  {
+    "question": "리벨리온의 2세대 AI반도체 REBEL 100이 엔비디아의 H200과 비교해 어떤 기술적 특징과 성능을 갖추고 있나요?",
+    "gold_id": 341,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 41
+  },
+  {
+    "question": "최근 주요 하이퍼스케일러들이 AI 반도체 개발을 위해 어떤 전략적 협력이나 인수 활동을 진행하고 있나요?",
+    "gold_id": 280,
+    "doc_type": "market",
+    "source": "exim_dc_aisemi_2026.pdf",
+    "page": 9
+  },
+  {
+    "question": "CXL 인터페이스 기술이 AI 시스템에서 메모리 용량 확장과 공유 측면에서 어떻게 발전해 왔으며, 각 버전별 주요 특징은 무엇인가요?",
+    "gold_id": 399,
+    "doc_type": "market",
+    "source": "kdb_aisemi_tech_industry.pdf",
+    "page": 14
+  }
+]

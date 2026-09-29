@@ -15,19 +15,43 @@
 
 ## Tech Stack
 - Framework : LangGraph
-- LLM/Generator : gpt-4.1-mini (탐색은 gpt-4.1-nano)
+- LLM/Generator : gpt-4.1-mini (탐색의 1차 후보 발굴만 gpt-4.1-nano)
 - LLM/Judge : gpt-4.1
-- Retrieval : Chroma - Hit Rate@K {TODO}, MRR {TODO}
-- Embedding : {TODO: 비교 실험 후 확정 (후보 bge-m3 / KURE-v1 / Qwen3-Embedding-0.6B)}
+- Retrieval : Chroma - Hit Rate@3 0.96, Hit Rate@5 0.98, MRR@5 0.837
+- Embedding : nlpai-lab/KURE-v1 (오픈소스, 후보 3종 비교 실험으로 선정)
 
 ## Agents
-- 스타트업 탐색 : 웹 검색으로 후보 발굴, 조건 확인, 세부 분야 분류
+- 스타트업 탐색 : 웹 검색으로 후보 발굴(1차 판정) 후 기업별 재검색으로 조건 상세 확인, 세부 분야 분류
 - 기술 요약 : RAG(기술 문서)로 칩·공정·개발 단계·강점·약점 요약
 - 시장성 평가 : RAG(시장 보고서)로 세부 분야 시장 규모·성장률 분석
-- 경쟁사 비교 : 웹 검색으로 경쟁사 목록과 차별점, 경쟁 리스크 정리
+- 경쟁사 비교 : 웹 검색으로 경쟁사 목록과 차별점, 경쟁 리스크 정리. 경쟁사의 세부 분야를 별도로 판정해 같은 분야만 비교
 - 팀 분석 : 웹 검색으로 창업자·핵심 인력 역량 분석
 - 투자 판단 : 평가표 채점(LLM) 후 환산 점수·투자 결정(규칙)
 - 보고서 생성 / 사실 검증 : 보고서 작성, 수치와 출처 대조
+
+## Embedding 선정 실험
+
+공개 리더보드 순위가 아니라 우리 문서 풀에서의 검색 성능으로 임베딩 모델을 골랐다. 코드: `eval/embedding/compare.py`
+
+**방법**
+- 문서 10편(182쪽)을 실제 파이프라인(`rag/ingest.py`)과 같은 방식으로 청크 450개로 분할 (tech 266, market 184)
+- 문서 유형별로 청크 25개씩 무작위로 뽑아, gpt-4.1-mini가 그 청크로만 답할 수 있는 질문을 생성 → 평가 질문 50개 (`eval/embedding/qa_set.json`)
+- 모델마다 청크와 질문을 임베딩하고, 설계대로 같은 문서 유형 안에서만 검색해 정답 청크의 순위를 측정
+
+**결과** (`eval/embedding/results.json`)
+
+| 모델 | Hit@1 | Hit@3 | Hit@5 | MRR@5 | 임베딩 시간 |
+|---|---|---|---|---|---|
+| BAAI/bge-m3 | 0.66 | 0.92 | 0.98 | 0.800 | 32.9초 |
+| **nlpai-lab/KURE-v1** | 0.72 | **0.96** | **0.98** | **0.837** | **32.9초** |
+| Qwen/Qwen3-Embedding-0.6B | **0.74** | 0.92 | 0.96 | 0.836 | 41.0초 |
+
+**선정: KURE-v1**
+- MRR@5는 Qwen3-Embedding과 거의 같고(0.837, 0.836), bge-m3보다 높다.
+- 에이전트는 검색 결과 상위 4개를 참고하므로 1위 적중(Hit@1)보다 상위 3~5개 안에 드는지가 중요하다. Hit@3, Hit@5에서 KURE-v1이 가장 높다.
+- 같은 문서를 임베딩하는 데 Qwen3-Embedding보다 약 20% 빠르다.
+
+**한계**: 평가 질문이 50개라 모델 간 차이는 1~2문항 수준이다. 질문을 정답 청크에서 생성했기 때문에 표현이 겹쳐 Hit@5가 전반적으로 높게 나온다.
 
 ## Architecture
 (그래프 이미지 TODO)
@@ -38,7 +62,7 @@
 ├── agents/          # 에이전트 모듈 (에이전트별 파일)
 ├── rag/             # 문서 적재(ingest), 임베딩, 검색기
 ├── prompts/         # 프롬프트 템플릿
-├── eval/            # 임베딩 비교·검색 성능 평가
+├── eval/embedding/  # 임베딩 후보 비교 실험 (스크립트, 평가 질문, 결과)
 ├── outputs/         # 생성된 보고서
 ├── state.py         # 공용 State 정의
 ├── graph.py         # LangGraph 흐름

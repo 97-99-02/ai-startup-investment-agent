@@ -1,0 +1,48 @@
+{
+  "setup": {
+    "chunks": 450,
+    "questions": 50,
+    "qa_model": "gpt-4.1-mini",
+    "chunk_size": 800,
+    "chunk_overlap": 100,
+    "device": "mps"
+  },
+  "results": [
+    {
+      "model": "BAAI/bge-m3",
+      "query_prompt": "",
+      "hit@1": 0.66,
+      "hit@3": 0.92,
+      "hit@5": 0.98,
+      "mrr@5": 0.8,
+      "hit@5_tech": 0.96,
+      "hit@5_market": 1.0,
+      "encode_sec": 32.9,
+      "dim": 1024
+    },
+    {
+      "model": "nlpai-lab/KURE-v1",
+      "query_prompt": "",
+      "hit@1": 0.72,
+      "hit@3": 0.96,
+      "hit@5": 0.98,
+      "mrr@5": 0.837,
+      "hit@5_tech": 0.96,
+      "hit@5_market": 1.0,
+      "encode_sec": 32.9,
+      "dim": 1024
+    },
+    {
+      "model": "Qwen/Qwen3-Embedding-0.6B",
+      "query_prompt": "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:",
+      "hit@1": 0.74,
+      "hit@3": 0.92,
+      "hit@5": 0.96,
+      "mrr@5": 0.836,
+      "hit@5_tech": 0.96,
+      "hit@5_market": 0.96,
+      "encode_sec": 41.0,
+      "dim": 1024
+    }
+  ]
+}
