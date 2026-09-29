@@ -10,5 +10,8 @@ __pycache__/
 # 재생성 가능한 산출물
 vectorstore/
 
+# 문서
+docs/
+
 # macOS
 .DS_Store
