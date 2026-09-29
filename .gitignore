@@ -1,0 +1,14 @@
+# 비밀키 (반 공용 OpenAI 키: 노출 시 자동 폐기)
+.env
+
+# 가상환경·캐시
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# 재생성 가능한 산출물
+vectorstore/
+
+# macOS
+.DS_Store
