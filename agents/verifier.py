@@ -35,6 +35,7 @@ from agents.reporter import (
     REFERENCE_HEADING,
     SCORE_MAX,
     WEIGHTS,
+    _is_recommend_mode,
     collect_sources,
     find_insufficient_items,
     item_contributions,
@@ -667,7 +668,7 @@ def build_verification_note(result: dict, scores: dict) -> str:
         if rag.get("not_found"):
             lines.append(f"  - 관련 원문을 찾지 못한 {rag['not_found']}건은 원문 대조를 하지 못했습니다(분석 자료와만 대조).")
     else:
-        lines.append("- 원문 대조(RAG): 벡터 DB에 연결하지 않아 실행하지 않았습니다. "
+        lines.append("- 원문 대조(RAG): 벡터 DB에 연결하지 못했거나 대조할 기술·시장 문장이 없어 실행하지 않았습니다. "
                      "기술·시장 수치는 분석 자료와만 대조했습니다.")
 
     if result.get("judged"):
@@ -722,7 +723,7 @@ def verifier_node(state: dict, judge_llm=None, retriever=None) -> dict:
     logger.info("[사실 검증] 정답지 수량 %d개 확보", len(evidence["pairs"]))
     mismatches, checked = find_quantity_mismatches(report, evidence)
     mismatches += find_wording_problems(report, state)
-    mismatches += check_citations(report, collect_sources(state))
+    mismatches += check_citations(report, collect_sources(state) if _is_recommend_mode(state) else [])
     mismatches += check_total_score(scores)
 
     judge = _resolve_judge(judge_llm)
