@@ -518,7 +518,7 @@ MAX_REJECTED_ROWS = 8                          # '추천 없음' 보고서의 �
 SCORE_TABLE_FRACS = (0.36, 0.26, 0.14, 0.24)   # 점수표(4칸) 열 폭 비율
 
 # State 안의 company 키 후보 (팀원 State와 다르면 여기만 수정)
-SECTOR_KEYS = ("sector", "세부_분야", "세부분야", "domain")
+SECTOR_KEYS = ("segment", "sector", "세부_분야", "세부분야", "domain")
 STAGE_KEYS = ("stage", "투자_단계", "투자단계", "round")
 
 HEADING_PATTERN = re.compile(r"^(#{1,3})\s+(.*)$")
