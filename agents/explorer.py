@@ -1,6 +1,6 @@
 """스타트업 탐색 에이전트 (담당: 이채목)
 
-도구: 웹 검색 (Tavily) / LLM: 발굴 config.MODEL_EXTRACT(nano), 상세 확인 config.MODEL_ANALYZE(mini)
+도구: 웹 검색 (Tavily) / LLM: config.MODEL_ANALYZE(mini) - 발굴·상세 확인 모두
 1) 첫 호출: config.SEARCH_QUERIES로 검색해 후보를 발굴하고 조건(상장 여부, 투자 단계, 국내, AI 반도체 설계)을
    1차 판정해 최대 config.MAX_CANDIDATES개를 candidates에 저장. 검색 결과에 실제로 나온 기업명만 인정
 2) 매 호출: candidates[current_index] 기업을 다시 검색해 최신 조건을 상세 확인하고 세부 분야 분류
@@ -15,7 +15,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from agents.web import format_results, search_many, to_source
-from config import ALLOWED_ROUNDS, MAX_CANDIDATES, MODEL_ANALYZE, MODEL_EXTRACT, SEARCH_QUERIES
+from config import ALLOWED_ROUNDS, MAX_CANDIDATES, MODEL_ANALYZE, SEARCH_QUERIES
 from state import RESET_ON_NEXT
 
 Listed = Literal["상장", "비상장", "확인불가"]
@@ -25,7 +25,7 @@ Segment = Literal["데이터센터", "엣지", "차량용", "인프라", "기타
 # ---------- 1차: 후보 발굴 ----------
 class Candidate(BaseModel):
     name: str = Field(description="기사에 표기된 기업명 그대로")
-    is_domestic: bool = Field(description="한국 기업인가")
+    is_domestic: bool = Field(description="본사가 한국에 있는 한국 기업인가. 미국·중국 등 해외 기업이면 false")
     is_ai_chip_designer: bool = Field(description="AI 연산용 반도체(NPU, AI 가속기, AI SoC 등)를 직접 설계하는 기업인가")
     listed: Listed
     latest_round: str = Field(description="기사에 나온 가장 최근 투자 단계. 예: 시드, 프리A, 시리즈A, 시리즈B 브릿지, 시리즈C, 프리IPO, 시리즈D. 없으면 '확인불가'")
@@ -38,6 +38,7 @@ class CandidateList(BaseModel):
 
 DISCOVER_PROMPT = """다음은 AI 반도체 스타트업 투자 관련 뉴스 검색 결과다.
 검색 결과에 등장하는 기업 중 AI 반도체와 관련된 기업을 모두 뽑아 항목별로 판정하라.
+국내 기사에도 해외 AI 반도체 스타트업(예: 미국·중국 기업)이 자주 나오므로, 본사가 한국인지 기사 내용으로 확인해 is_domestic을 판정한다.
 검색 결과에 없는 정보는 추측하지 말고 '확인불가' 또는 false로 둔다.
 
 {results}"""
@@ -74,7 +75,8 @@ def is_eligible(listed: str, round_text: str, exited: bool) -> tuple[bool, str]:
 def discover_candidates() -> list[str]:
     results = search_many(SEARCH_QUERIES, max_results=10)
     corpus = " ".join(r["title"] + " " + r["content"] for r in results)
-    llm = ChatOpenAI(model=MODEL_EXTRACT, temperature=0).with_structured_output(CandidateList)
+    # 1차 발굴도 mini를 쓴다: nano는 국내 기사에 나온 해외 기업을 국내로 잘못 판정해 후보 자리를 낭비했다
+    llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(CandidateList)
     found = llm.invoke(DISCOVER_PROMPT.format(results=format_results(results))).candidates
 
     picked = []
@@ -127,7 +129,7 @@ def verify_company(name: str) -> dict:
         return {"company": {"name": name}, "is_eligible": False,
                 "eligibility_reason": "상세 확인용 기사를 찾지 못함", "sources": []}
 
-    # 상세 확인은 항목이 많아 nano가 빈칸을 남기므로 mini를 쓴다 (발굴 단계는 nano)
+    # 상세 확인은 항목이 많아 nano가 빈칸을 남겨 mini를 쓴다
     llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(CompanyProfile)
     p = llm.invoke(VERIFY_PROMPT.format(name=name, results=format_results(results), segment_rules=SEGMENT_RULES))
     ok, reason = is_eligible(p.listed, p.latest_round, p.exited)

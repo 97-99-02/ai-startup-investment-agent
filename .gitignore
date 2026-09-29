@@ -10,8 +10,12 @@ __pycache__/
 # 재생성 가능한 산출물
 vectorstore/
 
-# 문서
-docs/
+# 실행할 때마다 생기는 보고서 (최종 제출본만 git add -f 로 올린다)
+outputs/*
+!outputs/.gitkeep
 
 # macOS
 .DS_Store
+
+# 문서
+docs/

@@ -13,6 +13,7 @@ class Source(TypedDict, total=False):
     date: str           # YYYY-MM-DD 또는 YYYY
     url: str
     snippet: str        # 근거로 쓴 원문 일부 (사실 검증에 사용)
+    page: int           # RAG 문서 출처의 쪽 번호 (웹 출처는 없음)
 
 
 class GraphState(TypedDict, total=False):

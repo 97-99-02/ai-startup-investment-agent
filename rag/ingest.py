@@ -11,6 +11,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 
 from config import CHROMA_DIR, DOC_TYPES
+from rag.catalog import lookup
 from rag.embeddings import get_embeddings
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -23,6 +24,7 @@ def load_documents() -> list[Document]:
     docs = []
     for doc_type in DOC_TYPES:
         for pdf in sorted((ROOT / "data" / doc_type).glob("*.pdf")):
+            info = lookup(pdf.name)  # 제목·발행기관·연도·URL (설계 2.4 메타데이터)
             for page_no, page in enumerate(PdfReader(pdf).pages, start=1):
                 text = page.extract_text() or ""
                 for chunk in splitter.split_text(text):
@@ -30,7 +32,9 @@ def load_documents() -> list[Document]:
                         continue
                     docs.append(Document(
                         page_content=chunk,
-                        metadata={"doc_type": doc_type, "source": pdf.name, "page": page_no},
+                        metadata={"doc_type": doc_type, "source": pdf.name, "page": page_no,
+                                  "title": info["title"], "publisher": info["publisher"],
+                                  "year": info["year"], "url": info["url"]},
                     ))
     return docs
 

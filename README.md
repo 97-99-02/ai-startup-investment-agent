@@ -15,7 +15,7 @@
 
 ## Tech Stack
 - Framework : LangGraph
-- LLM/Generator : gpt-4.1-mini (탐색의 1차 후보 발굴만 gpt-4.1-nano)
+- LLM/Generator : gpt-4.1-mini
 - LLM/Judge : gpt-4.1
 - Retrieval : Chroma - Hit Rate@3 0.96, Hit Rate@5 0.98, MRR@5 0.837
 - Embedding : nlpai-lab/KURE-v1 (오픈소스, 후보 3종 비교 실험으로 선정)
