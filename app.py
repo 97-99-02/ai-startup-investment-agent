@@ -4,6 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from agents.reporter import export_report_pdf
 from graph import build_graph
 
 load_dotenv()
@@ -17,6 +18,8 @@ def main():
     path = out_dir / f"report_{datetime.now():%Y%m%d_%H%M}.md"
     path.write_text(state["report"], encoding="utf-8")
     print(f"보고서 저장: {path}")
+    pdf_path, pages = export_report_pdf(state["report"], state=state)
+    print(f"제출용 PDF 저장: {pdf_path} ({pages}쪽)")
     print(f"평가 후보: {state['candidates']}")
     print(f"보류/제외: {[r['company'] for r in state.get('rejected', [])]}")
 
