@@ -36,7 +36,9 @@ certifi==2026.7.22
     #   langchain-openai
     #   requests
 charset-normalizer==3.5.1
-    # via requests
+    # via
+    #   reportlab
+    #   requests
 chromadb==1.5.9
     # via
     #   ai-startup-investment-agent
@@ -291,6 +293,8 @@ packaging==26.3
     #   langsmith
     #   onnxruntime
     #   transformers
+pillow==12.3.0
+    # via reportlab
 propcache==0.5.4
     # via
     #   aiohttp
@@ -347,6 +351,8 @@ regex==2026.9.29
     # via
     #   tiktoken
     #   transformers
+reportlab==5.0.1
+    # via ai-startup-investment-agent
 requests==2.34.2
     # via
     #   kubernetes
