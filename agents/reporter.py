@@ -163,6 +163,7 @@ SOURCE_FORMATS = {
             "{author}({date}). {title}. {site}, {url}"),
 }
 OTHER_LABEL = "기타"
+UNKNOWN_DATE = "날짜 미상"
 REFERENCE_HEADING = "## REFERENCE"
 
 PLACEHOLDER = "{{SCORE_TABLE}}"                      # AI가 쓰는 '표 자리' 표시
@@ -254,10 +255,11 @@ def insert_score_table(body: str, scores: dict) -> str:
 def format_source(src: dict) -> tuple[str, str]:
     """출처 하나를 (종류 이름, 표기 문자열)로 바꾼다. 필드가 부족하면 대체 표기를 쓴다."""
     kind = src.get("kind")  # state.Source: "web" | "report"
+    site = src.get("site") or urlparse(src.get("url", "")).netloc.removeprefix("www.")
     src = {**src, "year": src.get("year") or (src.get("date") or "")[:4],
-           "author": src.get("author") or src.get("publisher", ""),
-           "site": src.get("site") or urlparse(src.get("url", "")).netloc.removeprefix("www."),
-           "url": src.get("url", "")}
+           "author": src.get("author") or src.get("publisher") or site,  # 언론사를 모르면 도메인
+           "date": src.get("date") or (UNKNOWN_DATE if kind == "web" else ""),  # 게시일 없는 검색 결과
+           "site": site, "url": src.get("url", "")}
     if kind in SOURCE_FORMATS:
         label, required, template = SOURCE_FORMATS[kind]
         missing = [f for f in required if not src.get(f)]
@@ -408,6 +410,8 @@ def assemble_report(state: dict, body: str, sources: list[dict]) -> str:
     body = REFERENCE_SECTION_PATTERN.sub("", body).rstrip()  # AI가 쓴 REFERENCE는 지운다(진짜는 코드가)
     if _is_recommend_mode(state):
         body = insert_score_table(body, state["scores"])
+    else:
+        body = body.replace(PLACEHOLDER, "")  # 추천 없음 보고서에는 점수표가 없다
     return body + build_reference_section(sources)
 
 
@@ -1016,7 +1020,8 @@ def export_report_pdf(report: str, output_dir: Path = OUTPUT_DIR, filename: str 
     else:
         logger.info("[PDF] SUMMARY 높이: 한 쪽의 %.0f%%", ratio * 100)
 
-    company_name = (state.get("company") or {}).get(COMPANY_NAME_KEY, "")
+    # 추천 기업이 없으면 마지막으로 평가한 기업 이름을 바닥글에 넣지 않는다
+    company_name = (state.get("company") or {}).get(COMPANY_NAME_KEY, "") if _is_recommend_mode(state) else ""
     label = " · ".join(v for v in ("AI 스타트업 투자 평가", company_name) if v)
     counter = {"n": 0}
     first, later = _page_decorations(font, label, counter)
