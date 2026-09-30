@@ -24,7 +24,8 @@ from pydantic import BaseModel, Field
 from config import (CORE_CAUTION_SCORE, CORE_ITEMS, CORE_MIN_SCORE, INVEST_THRESHOLD, LLM_ATTEMPTS, LLM_MAX_TOKENS,
                     LLM_SEED, MODEL_JUDGE, WEIGHTS)
 
-JUDGE_LOG_PATH = Path("outputs/judge_log.jsonl")   # 후보별 채점 로그 (outputs/*는 gitignore)
+# 후보별 채점 로그 (outputs/*는 gitignore). 실행 위치가 달라도 같은 파일을 쓰도록 프로젝트 폴더 기준으로 둔다
+JUDGE_LOG_PATH = Path(__file__).resolve().parent.parent / "outputs" / "judge_log.jsonl"
 logger = logging.getLogger(__name__)
 
 # 같은 기업을 다시 평가했을 때 결과가 크게 다르면 재채점한다. 같은 기업 점수가 몇 분 사이에 66~74점을 오가며
@@ -36,7 +37,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 # 점수에 영향을 주는 파일. 내용이 바뀌면 평가 버전이 바뀐다 (보고서·사실 검증은 점수와 무관해 뺀다)
 EVAL_FILES = ("config.py", "agents/explorer.py", "agents/web.py", "agents/tech_summary.py", "agents/market.py",
               "agents/competitor.py", "agents/team.py", "agents/judge.py",
-              "rag/ingest.py", "rag/retriever.py", "rag/embeddings.py")
+              "rag/ingest.py", "rag/retriever.py", "rag/embeddings.py", "rag/catalog.py", "rag/ocr_fix.py")
 
 INSUFFICIENT_MAX_SCORE = 2   # 설계 3.5: 공개 정보로 확인할 수 없는 항목은 최대 2점
 ITEM_LABELS = {
@@ -225,8 +226,8 @@ def eval_version() -> str:
 
 def past_records(name: str, version: str) -> list[dict]:
     """채점 로그에서 같은 기업·같은 평가 버전의 기록. 로그가 없거나 읽을 수 없으면 빈 목록."""
-    try:
-        lines = JUDGE_LOG_PATH.read_text(encoding="utf-8").splitlines()
+    try:  # 쓰다가 끊겨 한글이 잘린 줄이 있어도 읽는다
+        lines = JUDGE_LOG_PATH.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return []
     records = []
@@ -235,7 +236,8 @@ def past_records(name: str, version: str) -> list[dict]:
             r = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if r.get("company") == name and r.get("eval_version") == version:
+        if (isinstance(r, dict) and r.get("company") == name and r.get("eval_version") == version
+                and isinstance(r.get("total"), (int, float)) and r.get("decision")):
             records.append(r)
     return records
 
@@ -251,12 +253,19 @@ def is_inconsistent(total: float, decision: str, history: list[dict]) -> bool:
     return changed or abs(total - statistics.median(r["total"] for r in history)) >= CONSISTENCY_GAP
 
 
-def median_card(cards: list[Scorecard]) -> Scorecard:
-    """항목마다 점수의 중앙값을 고르고, 그 점수를 준 채점의 근거·출처를 함께 쓴다.
-    법률 리스크는 다수 판정, 리스크 목록은 처음 채점 것을 쓴다."""
+def median_card(cards: list[Scorecard], state: dict, sources: list[dict]) -> Scorecard:
+    """항목마다 근거 규칙을 적용한 최종 점수의 중앙값을 준 채점을 골라, 그 채점의 점수·근거·출처를 쓴다.
+    LLM 원점수로 고르면 출처가 없어 2점으로 깎일 5점이 중앙값으로 뽑혀 최댓값 쪽으로 치우친다.
+    법률 리스크는 출처 규칙을 적용한 실제 판정의 다수를 따르고, 리스크 목록은 처음 채점 것을 쓴다."""
+    finals = [apply_evidence_rules(c, state, sources) for c in cards]
     middle = len(cards) // 2
-    picked = {key: sorted((getattr(c, key) for c in cards), key=lambda s: s.score)[middle] for key in WEIGHTS}
-    picked["legal_risk"] = sorted((c.legal_risk for c in cards), key=lambda x: x.unresolved)[middle]
+    picked = {}
+    for key in WEIGHTS:
+        order = sorted(range(len(cards)), key=lambda i: finals[i][key]["score"])
+        picked[key] = getattr(cards[order[middle]], key)
+    effective = [c.legal_risk.unresolved and bool(cite(c.legal_risk.source_ids, sources)) for c in cards]
+    majority = sum(effective) * 2 > len(effective)
+    picked["legal_risk"] = next(c.legal_risk for c, e in zip(cards, effective) if e == majority)
     return cards[0].model_copy(update=picked)
 
 
@@ -343,13 +352,19 @@ def judge_node(state: dict) -> dict:
     if history:
         consistency["past_median_total"] = statistics.median(r["total"] for r in history)
     if is_inconsistent(scores["total"], scores["decision"], history):
-        cards = [card] + [_judge_llm(LLM_SEED + i).invoke(prompt) for i in range(1, RESCORE_SAMPLES + 1)]
-        card = median_card(cards)
-        consistency.update(rescored=True, first_total=scores["total"],
-                           sample_totals=[score_card(c, state, sources)["total"] for c in cards])
-        scores = score_card(card, state, sources)
-        # 재채점 뒤에도 다르면 분석 입력(검색 결과 등)이 바뀐 경우라 기록으로 남긴다
-        consistency["still_inconsistent"] = is_inconsistent(scores["total"], scores["decision"], history)
+        try:
+            extra = [_judge_llm(LLM_SEED + i).invoke(prompt) for i in range(1, RESCORE_SAMPLES + 1)]
+        except Exception as e:  # noqa: BLE001 - 재채점이 실패해도 첫 채점 결과로 진행한다
+            logger.warning("재채점 실패, 첫 채점 결과를 씁니다: %s", e)
+            consistency["rescore_error"] = str(e)[:200]
+        else:
+            cards = [card] + extra
+            card = median_card(cards, state, sources)
+            consistency.update(rescored=True, first_total=scores["total"],
+                               sample_totals=[score_card(c, state, sources)["total"] for c in cards])
+            scores = score_card(card, state, sources)
+            # 재채점 뒤에도 다르면 분석 입력(검색 결과 등)이 바뀐 경우라 기록으로 남긴다
+            consistency["still_inconsistent"] = is_inconsistent(scores["total"], scores["decision"], history)
     write_log(name, card, scores, version, consistency)
     out = {"scores": scores}
     if scores["decision"] == "보류":
