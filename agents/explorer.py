@@ -15,7 +15,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from agents.web import format_results, search_many, to_source
-from config import ALLOWED_ROUNDS, MAX_CANDIDATES, MODEL_ANALYZE, SEARCH_QUERIES
+from config import ALLOWED_ROUNDS, LLM_ATTEMPTS, LLM_MAX_TOKENS, LLM_SEED, MAX_CANDIDATES, MODEL_ANALYZE, SEARCH_QUERIES
 from state import RESET_ON_NEXT
 
 Listed = Literal["상장", "비상장", "확인불가"]
@@ -76,7 +76,7 @@ def discover_candidates() -> list[str]:
     results = search_many(SEARCH_QUERIES, max_results=10)
     corpus = " ".join(r["title"] + " " + r["content"] for r in results)
     # 1차 발굴도 mini를 쓴다: nano는 국내 기사에 나온 해외 기업을 국내로 잘못 판정해 후보 자리를 낭비했다
-    llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(CandidateList)
+    llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(CandidateList).with_retry(stop_after_attempt=LLM_ATTEMPTS)
     found = llm.invoke(DISCOVER_PROMPT.format(results=format_results(results))).candidates
 
     picked = []
@@ -117,6 +117,8 @@ class CompanyProfile(BaseModel):
 
 VERIFY_PROMPT = """다음은 '{name}'에 대한 뉴스 검색 결과다. 이 기업의 정보를 항목별로 정리하라.
 여러 기사가 다르면 가장 최근 기사를 따른다. 검색 결과에 없는 정보는 빈 문자열 또는 '확인불가'로 둔다.
+각 결과 제목 옆 괄호는 기사 게시일이다. 최근 투자 시기(round_date)는 기사 본문에 언급된 과거 라운드 날짜가 아니라
+그 라운드 유치를 보도한 기사의 게시일을 따른다.
 
 {segment_rules}
 {results}"""
@@ -130,7 +132,7 @@ def verify_company(name: str) -> dict:
                 "eligibility_reason": "상세 확인용 기사를 찾지 못함", "sources": []}
 
     # 상세 확인은 항목이 많아 nano가 빈칸을 남겨 mini를 쓴다
-    llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(CompanyProfile)
+    llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(CompanyProfile).with_retry(stop_after_attempt=LLM_ATTEMPTS)
     p = llm.invoke(VERIFY_PROMPT.format(name=name, results=format_results(results), segment_rules=SEGMENT_RULES))
     ok, reason = is_eligible(p.listed, p.latest_round, p.exited)
     if ok and not p.is_domestic:
