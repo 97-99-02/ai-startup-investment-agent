@@ -209,6 +209,8 @@ def tech_summary_node(state: dict) -> dict:
     segment = company.get("segment") or "AI 반도체"
     query = f"{name} {segment} AI 반도체 칩 공정 테이프아웃 양산 성능 매출 계약"
     items = _merge(_collect(query, reports=True))
+    if company.get("product"):  # 분야 검색어만으로는 최신 제품 기사를 놓친 적이 있어 주력 제품명으로 한 번 더 찾는다
+        items = _merge(items + _collect(f"{name} {company['product']} 개발 샘플 양산", reports=False))
     selected, rewrite = _relevant(name, items)
     company_items = [item for item in selected if _has_company(item, name)]
     if not company_items:  # 관련 근거가 없을 때 검색어를 바꿔 한 번 더 검색
