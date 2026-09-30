@@ -153,6 +153,14 @@ def test_log_has_raw_and_final_scores(monkeypatch, isolated_log):
     assert len(rec["items"]["tech"]["evidence"]) <= 80
 
 
+def test_log_records_legal_risk_judgement(monkeypatch, isolated_log):
+    import json
+    run_node(monkeypatch, card(legal=True, legal_ids=()))    # LLM은 미해소로 판정했지만 출처가 없어 무시되는 경우
+    legal = json.loads(isolated_log.read_text(encoding="utf-8"))["legal_risk"]
+    assert legal["raw_unresolved"] is True and legal["unresolved"] is False
+    assert legal["evidence"] == "소송" and legal["sources"] == []
+
+
 def test_log_write_failure_does_not_stop_node(monkeypatch, tmp_path):
     blocker = tmp_path / "file"
     blocker.write_text("x")

@@ -86,8 +86,12 @@ PROMPT = """너는 AI 반도체 VC의 투자 심사역이다. '{name}'을 아래
 4. 공개 정보로 항목을 확인할 수 없으면 insufficient=true로 두고, 근거에 '정보 부족'이라고 쓴다.
 5. market은 대상 세부 분야 수치(segment_specific=true)만 3~5점 근거로 인정한다.
 6. traction은 기술 요약(tech_summary)의 공개 매출·계약만 근거로 쓴다. 투자 라운드·투자사 정보는 traction 근거로 쓰지 않는다.
-7. 법률 리스크는 핵심 기술 관련 소송·분쟁이 자료에 나오고 해소되지 않은 경우에만 unresolved=true다.
+7. 법률 리스크(legal_risk): 핵심 기술 관련 소송·분쟁이 자료에 있으면 사업 지속에 영향을 주는지 자료로 판단하고, 판단 근거를 evidence에 쓴다.
+   소송이 있어도 사업 영향이 없다거나 이미 해소됐다는 출처가 있으면 그 근거를 쓰고 unresolved=false다.
+   그런 출처가 없으면 unresolved=true다. 소송·분쟁이 자료에 없으면 unresolved=false다. 판단에 쓴 출처 번호는 source_ids에 넣는다.
 8. risks에는 투자 시 고려할 시장·기술·규제·경쟁·운영 리스크를 분석 자료에서 골라 쓴다.
+9. 계획·예정·목표·추진 중인 일은 달성한 것으로 인정하지 않는다. 테이프아웃 완료 예정은 테이프아웃 완료가 아니고,
+   양산 예정·목표는 양산 시작이 아니며, 계약 논의·협의 중은 계약 체결이 아니다. 완료가 확인된 사실만 해당 점수 조건으로 본다.
 
 [분석 자료]
 {materials}
@@ -181,6 +185,12 @@ def write_log(name: str, card: Scorecard, scores: dict) -> None:
                     "evidence": v["evidence"][:80],
                 }
                 for k, v in scores["items"].items()
+            },
+            "legal_risk": {
+                "raw_unresolved": card.legal_risk.unresolved,          # LLM이 준 원래 판정
+                "unresolved": scores["legal_risk"]["unresolved"],      # 출처 규칙 적용 뒤 (보류 사유가 되는 값)
+                "evidence": scores["legal_risk"]["evidence"][:200],
+                "sources": [x["title"] for x in scores["legal_risk"]["sources"]],
             },
             "total": scores["total"],
             "decision": scores["decision"],
