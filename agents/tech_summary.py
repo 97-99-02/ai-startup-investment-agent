@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import date
 from typing import Literal
 
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from agents.web import search_many, to_source as web_to_source
+from agents.web import search_many, source_date, to_source as web_to_source
 from config import MODEL_ANALYZE
 from rag.retriever import get_retriever, to_source as report_to_source
 
@@ -93,23 +94,6 @@ def _merge(items: list[dict]) -> list[dict]:
     return merged
 
 
-<<<<<<< Updated upstream
-def _collect(query: str, *, reports: bool) -> list[dict]:
-    items = []
-    if reports:
-        for doc in get_retriever("tech", k=5).invoke(query):
-            items.append({"kind": "report", "source": doc, "text": doc.page_content[:800],
-                          "title": doc.metadata.get("title", "")})
-    try:
-        results = search_many([query], max_results=8, topic="general")
-    except Exception as exc:
-        logger.warning("기술 요약 웹 검색 실패: %s", exc)
-        results = []
-    for result in results:
-        items.append({"kind": "web", "source": result, "text": result.get("content", "")[:800],
-                      "title": result.get("title", "")})
-    return items
-=======
 WEB_TEXT_LIMIT = 6000
 MAX_COMPANY_EVIDENCE = 24
 SEARCH_GROUPS = (
@@ -144,16 +128,15 @@ def _queries(name: str, segment: str, missing: list[str], *, retry: bool = False
                 for fields, _ in SEARCH_GROUPS if set(fields).intersection(missing)]
     return [f"{name} {segment} {terms}" for fields, terms in SEARCH_GROUPS
             if set(fields).intersection(missing)]
->>>>>>> Stashed changes
+
+
+def _date_label(item: dict) -> str:
+    return item.get("date") or "날짜 미상"
 
 
 def _format(items: list[dict]) -> str:
     return "\n\n".join(
-<<<<<<< Updated upstream
-        f"[{i}] ({item['kind']}) {item['title']}\n{item['text'][:1200]}"
-=======
         f"[{i}] ({item['kind']}, {_date_label(item)}) {item['title']}\n{item['text']}"
->>>>>>> Stashed changes
         for i, item in enumerate(items)
     )
 
@@ -171,13 +154,44 @@ DRAFT_PROMPT = """'{name}'에 대해 아래 근거에서 확인되는 사실만 
 연결하지 마세요. 계획과 양산 완료, 투자 유치와 매출, 협력 논의와 체결 계약을 구분하세요.
 확인되지 않은 항목은 생략하세요.
 
+오늘은 {today}입니다. 근거마다 날짜(기사 게시일 또는 보고서 발행 연도)가 붙어 있습니다.
+- 예정·계획·목표 문장은 text 끝에 근거 날짜를 "(2024-01-04 기준)"처럼 붙이세요.
+- '올해', '내년', '이달' 같은 상대 시점은 근거 날짜로 연도를 밝혀 쓰세요. 날짜 미상 근거의
+  상대 시점 문장은 추출하지 마세요.
+- 같은 내용에 시점이 다른 근거가 있으면 최신 근거를 따르세요. 최신 근거에서 이미 달라진
+  과거 계획(예: 양산 예정 → 양산 중, 목표 하향)은 현재 상태처럼 쓰지 마세요.
+
 {evidence}"""
 
 GROUNDING_PROMPT = """각 주장을 지정된 원문과 대조하세요. 원문이 주체·상태·수치·시점을
 직접 뒷받침할 때만 supported=true입니다. 과장하거나 계획을 실적으로 바꾸면 false입니다.
+주장 끝의 "(날짜 기준)" 표기는 원문 날짜와 같으면 뒷받침된 것으로 봅니다.
 모든 claim_id에 답하세요.
 
 {blocks}"""
+
+
+_YEAR = re.compile(r"20\d{2}")
+_RELATIVE_TIME = re.compile(r"이달|올해|금년|내년|지난해|작년|다음 ?달|연내|오는 ?\d{1,2}월|올 ?[상하]반기")
+_PLAN = re.compile(r"예정|계획|목표|앞두고|추진")
+
+
+def _time_ok(claim: Claim, item: dict) -> bool:
+    """근거 날짜로 확인할 수 없는 시점을 주장에 넣었으면 버린다 (LLM이 다른 근거의 날짜를 가져다 붙이는 경우)."""
+    item_date = item.get("date", "")
+    allowed = set(_YEAR.findall(claim.quote))
+    if item_date[:4].isdigit():
+        allowed |= {item_date[:4], str(int(item_date[:4]) + 1)}   # '오는 5월', '내년'을 근거 날짜로 환산한 연도
+    if any(year not in allowed for year in _YEAR.findall(claim.text)):
+        return False
+    return bool(item_date) or not _RELATIVE_TIME.search(claim.quote)  # 날짜 미상 근거의 '내년' 등은 시점을 알 수 없다
+
+
+def _with_time(claim: Claim, item: dict) -> Claim:
+    """계획·예정 주장에는 근거 날짜를 붙여 현재 상태로 읽히지 않게 한다."""
+    if item.get("date") and _PLAN.search(claim.text) and "기준" not in claim.text:
+        return claim.model_copy(update={"text": f"{claim.text} ({item['date']} 기준)"})
+    return claim
 
 
 def _relevant(name: str, items: list[dict]) -> tuple[list[dict], str]:
@@ -191,20 +205,6 @@ def _relevant(name: str, items: list[dict]) -> tuple[list[dict], str]:
 def _grounded(name: str, items: list[dict], audit: list[dict] | None = None) -> list[Claim]:
     if not items:
         return []
-<<<<<<< Updated upstream
-    draft = _llm(Draft).invoke(DRAFT_PROMPT.format(name=name, evidence=_format(items)))
-    candidates = [
-        c for c in draft.claims
-        if 0 <= c.evidence_id < len(items)
-        and c.quote.strip()
-        and _compact(c.quote) in _compact(items[c.evidence_id]["text"])
-        and _has_company(items[c.evidence_id], name)
-    ]
-    if not candidates:
-        return []
-    blocks = "\n\n".join(
-        f"[{i}] 주장: {c.text}\n원문: {items[c.evidence_id]['text'][:1200]}"
-=======
     draft = _llm(Draft).invoke(DRAFT_PROMPT.format(name=name, evidence=_format(items),
                                                 today=date.today().isoformat()))
     candidates = []
@@ -231,7 +231,6 @@ def _grounded(name: str, items: list[dict], audit: list[dict] | None = None) -> 
         return []
     blocks = "\n\n".join(
         f"[{i}] 주장: {c.text}\n원문({_date_label(items[c.evidence_id])}): {items[c.evidence_id]['text']}"
->>>>>>> Stashed changes
         for i, c in enumerate(candidates)
     )
     grade = _llm(Grounding).invoke(GROUNDING_PROMPT.format(blocks=blocks))
@@ -343,13 +342,11 @@ def tech_summary_node(state: dict) -> dict:
     company = state["company"]
     name = company["name"]
     segment = company.get("segment") or "AI 반도체"
-<<<<<<< Updated upstream
-    query = f"{name} {segment} AI 반도체 칩 공정 테이프아웃 양산 성능 매출 계약"
-    items = _merge(_collect(query, reports=True))
-=======
     queries = _queries(name, segment, list(FIELDS))
+    if company.get("product"):
+        # main의 주력 제품명 검색 보완을 웹 사실 수집 단계에도 유지한다.
+        queries.append(f"{name} {company['product']} 개발 샘플 양산")
     items = _merge(_collect_web(queries))
->>>>>>> Stashed changes
     selected, rewrite = _relevant(name, items)
     evidence = [item for item in selected if _has_company(item, name)][:MAX_COMPANY_EVIDENCE]
     rejected = []
@@ -381,29 +378,11 @@ def tech_summary_node(state: dict) -> dict:
     claim_evidence = []
     for claim in claims:
         source = source_by_id[claim.evidence_id]
-<<<<<<< Updated upstream
-        trace = {
-            "field": claim.field,
-            "text": claim.text,
-            "quote": claim.quote,
-            "source_id": source["source_id"],
-            "kind": source["kind"],
-            "title": source["title"],
-        }
-        if source["kind"] == "report":
-            trace.update({key: source[key] for key in ("source_file", "source_path", "page")
-                          if key in source})
-        else:
-            trace["url"] = source["url"]
-            if source.get("source_path"):
-                trace["source_path"] = source["source_path"]
-=======
         trace = {"field": claim.field, "text": claim.text, "quote": claim.quote,
                  "source_id": source["source_id"], "kind": "web", "title": source["title"],
                  "date": source.get("date", ""), "url": source["url"]}
         if source.get("source_path"):
             trace["source_path"] = source["source_path"]
->>>>>>> Stashed changes
         claim_evidence.append(trace)
     context, report_sources, context_status, rag_diagnostics = _industry_context(name, segment, claims, evidence)
     summary.update({

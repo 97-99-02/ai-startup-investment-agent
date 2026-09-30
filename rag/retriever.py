@@ -6,6 +6,7 @@
     for d in docs: d.page_content, d.metadata["title"], d.metadata["publisher"], d.metadata["page"]
     sources = [to_source(d, company="모빌린트", node="tech_summary") for d in docs]  # state.Source 형식
 """
+import threading
 from functools import lru_cache
 from hashlib import sha256
 from pathlib import Path
@@ -18,10 +19,17 @@ from rag.embeddings import get_embeddings
 from rag.ingest import COLLECTION
 
 ROOT = Path(__file__).resolve().parent.parent
+# 병렬 노드가 처음에 동시에 부르면 Chroma 클라이언트를 두 번 만들다 KeyError가 난다. 처음 한 번만 만들도록 잠근다
+_LOCK = threading.Lock()
+
+
+def get_vectorstore() -> Chroma:
+    with _LOCK:
+        return _load_vectorstore()
 
 
 @lru_cache(maxsize=1)
-def get_vectorstore() -> Chroma:
+def _load_vectorstore() -> Chroma:
     persist = ROOT / CHROMA_DIR
     if not persist.exists():
         raise FileNotFoundError("vectorstore가 없습니다. 먼저 `uv run python -m rag.ingest` 를 실행하세요.")

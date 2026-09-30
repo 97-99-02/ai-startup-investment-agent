@@ -23,3 +23,20 @@ ETRI 보고서 원문: https://ettrends.etri.re.kr
 | exim_dc_aisemi_2026.pdf | 데이터센터용 AI반도체 시장 현황 및 전망 | 한국수출입은행 해외경제연구소 (2026) | 53 |
 | kdb_aisemi_tech_industry.pdf | AI 반도체 기술 및 산업 동향 | KDB미래전략연구소 (2024) | 25 |
 | kita_semi_2026.pdf | 반도체 전방산업 업황 진단 및 2026년 전망 | 한국무역협회 (2025) | 9 |
+
+## OCR 보정
+
+`kdb_aisemi_tech_industry.pdf`는 Type 3 글꼴 손상으로 pypdf·pdftotext·PyMuPDF 모두 일부 숫자와 영문을 깨뜨린다
+(예: 원문 "'26년 3,400백만달러 (YOLE('23.9))" → 추출 "'2/HxT67년 ... (/HxT'p/HxT55LE"). 손상된 20쪽은
+macOS 기본 OCR(Apple Vision)로 다시 읽어 `ocr/kdb_aisemi_tech_industry/pNNN.txt`에 저장했고, `rag/ingest.py`는 해당 쪽에 이 텍스트를 쓴다.
+다시 만들려면 macOS에서 `uv run --with ocrmac --with pymupdf python -m rag.ocr_fix`.
+
+OCR은 그래프 눈금·값을 한 줄씩 위치 순서대로 읽어, 어느 연도·분야의 값인지 알 수 없게 뒤섞는다.
+`rag/ingest.py`는 적재할 때 숫자만 있는 줄이 3줄 이상 이어지는 부분을 그래프로 보고 뺀다(4·5·17·21쪽, 120줄).
+표는 숫자와 글자 줄이 번갈아 나와 그대로 남는다(예: 7쪽 MLPerf 결과표).
+
+OCR도 소수점을 빠뜨리는 경우가 있어, pypdf 추출 결과(손상되지 않은 부분)와 소수를 대조했다. 원문으로 확인된 두 곳만 직접 고쳤다.
+- p004: "전년 대비 545% 증가" → "54.5%"
+- p021: "(중국) 923" → "92.3"
+
+`rag.ocr_fix`를 다시 실행하면 이 수정이 덮어써지므로, 다시 만든 뒤에는 위 두 곳을 다시 고쳐야 한다.

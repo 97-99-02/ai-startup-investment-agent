@@ -1,15 +1,15 @@
 """투자 판단 에이전트 (담당: 김다은)
 
-입력: company, tech_summary, market_analysis, competitor_analysis, team_analysis
-LLM: config.MODEL_JUDGE - 항목별 점수(1~5)와 근거, 법률 리스크 여부만 판정 (설계 3.3)
-코드: 환산 점수 계산, config.INVEST_THRESHOLD 비교, 보류 조건 적용 (설계 3.4)
+입력: company, tech_summary, market_analysis, competitor_analysis, team_analysis, sources(현재 기업 것만)
+LLM: config.MODEL_JUDGE - 항목별 점수(1~5)와 근거·출처, 법률 리스크 여부, 리스크 목록만 판정 (설계 3.3)
+코드: 근거 규칙 적용(출처 없음·정보 부족 → 최대 2점), 환산 점수 계산, config.INVEST_THRESHOLD 비교,
+      보류 조건 적용 (설계 3.4, 3.5). 같은 점수에는 항상 같은 결정이 나온다
 출력: {"scores": {...}, "rejected": [...](보류일 때)}
-  - scores 필수 키: "decision" ("투자" 또는 "보류"), "total" (환산 점수)
+  - scores: items({영문 키: {score, evidence, sources, insufficient}}), legal_risk, risks,
+    total(환산 점수), decision("투자" | "보류"), hold_reasons, cautions(핵심 항목 2점 이하 주의 코멘트)
     graph.route_after_judge 가 scores["decision"] 으로 분기한다
   - rejected 항목: {"company": 기업명, "reason": 보류 사유, "total": 환산 점수}
 """
-<<<<<<< Updated upstream
-=======
 import json
 import logging
 from datetime import datetime
@@ -230,17 +230,10 @@ def write_log(name: str, card: Scorecard, scores: dict) -> None:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
     except Exception as e:  # noqa: BLE001 - 로그 실패로 평가 흐름을 끊지 않는다
         logger.warning("채점 로그를 쓰지 못했습니다: %s", e)
->>>>>>> Stashed changes
 
 
 def judge_node(state: dict) -> dict:
-    # TODO(다은): 구현 전까지 모든 후보를 보류로 처리해 반복 경로가 돌게 한다
     name = state["company"]["name"]
-<<<<<<< Updated upstream
-    return {
-        "scores": {"decision": "보류", "total": 0},
-        "rejected": [{"company": name, "reason": "투자 판단 미구현", "total": 0}],
-=======
     sources = company_sources(state)
     materials = {k: state.get(k) for k in
                  ("company", "tech_summary", "market_analysis", "competitor_analysis", "team_analysis")}
@@ -273,5 +266,9 @@ def judge_node(state: dict) -> dict:
         "decision": decision,
         "hold_reasons": hold_reasons,
         "cautions": build_cautions(items),
->>>>>>> Stashed changes
     }
+    write_log(name, card, scores)
+    out = {"scores": scores}
+    if decision == "보류":
+        out["rejected"] = [{"company": name, "reason": "; ".join(hold_reasons), "total": total}]
+    return out

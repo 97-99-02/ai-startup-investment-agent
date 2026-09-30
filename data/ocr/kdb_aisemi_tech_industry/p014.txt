@@ -1,0 +1,33 @@
+이슈분석
+<그림
+9>
+In-Memory-Array 개념도
+메모리
+연산기/로직
+〈그림 10>
+In-Memory-Cell 개념도
+기억-연산
+일체형
+메모리
+자료 : 정보통신정책연구원(KISDI) ('23)
+a in-Memory PIM 기술의 현 수준은 In-Memory-Array에 가까우며, 메모리 제조사
+들을 중심으로 관련 제품이 개발되고 있음
+• SK하이닉스는 22년 'GDDR6-AiM(Accelerator-in-Memory)’ 제품을 개발하였으며,
+'23년 상기 제품들로 구성된 'AiMX' AI 가속기카드 시제품을 공개
+- 공개한 자료에 따르면, 동일 AI 모델 적용 추론 환경에서 AiMX 기반 시스템이
+AI GPU 기반 대비 응답속도는 13배 빠르고 전력 소모는 17% 감소할 수 있는
+것으로 제시
+• 삼성전자는 기존 대비 Al 가속기 성능은 2배 향상, 전력 소모는 50% 감소시킬
+수 있는 'HBM-PIM' 제품을 개발
+<그림 11>
+In-Memory PIM 적용 사례(SK하이닉스 AiMX)
+AIM CORETO MOD
+AiMCh pr
+AiMX Card prototype
+자료 : SK하이닉스
+• PIM의 최종형태인 In-Memory Cell 기술은 연구 단계 수준이며, 주로 SRAMI9)을
+이용한 In-Memory Cell 연구가 활발하게 진행 중
+19) SRAM(Static Random-Access Memory)은 DRAM과 같이 휘발성 메모리이나, 전원이 공급되는 한
+데이터가 보존되며, DRAM보다 데이터 처리 속도가 빠름
+16
+2 KDB산업은행 미래전연구소 | 산은조사월보
