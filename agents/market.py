@@ -15,7 +15,7 @@ from typing import Literal
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from config import MODEL_ANALYZE
+from config import LLM_ATTEMPTS, LLM_MAX_TOKENS, LLM_SEED, MODEL_ANALYZE
 from rag.retriever import get_retriever, to_source
 
 # 세부 분야별 검색어. 실행마다 결과가 달라지지 않도록 고정한다 (시장 규모 / 성장률 / 수요 요인)
@@ -127,7 +127,7 @@ def is_segment_specific(scope: str, text: str, segment: str) -> bool:
 
 def extract(name: str, segment: str, docs: list) -> tuple[MarketAnalysis, list[dict]]:
     """LLM으로 추출한 뒤, 근거 번호가 맞고 단위가 있으며 수치가 원문에 있는 것만 남기고 세부 분야 여부를 판정한다."""
-    llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(MarketAnalysis)
+    llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(MarketAnalysis).with_retry(stop_after_attempt=LLM_ATTEMPTS)
     label = SEGMENT_LABELS.get(segment, segment)
     a = llm.invoke(PROMPT.format(name=name, segment=label, chunks=format_chunks(docs)))
     figures = []

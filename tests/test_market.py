@@ -50,6 +50,9 @@ def test_prompt_uses_label_for_etc(monkeypatch):
         def with_structured_output(self, _):
             return self
 
+        def with_retry(self, **_):
+            return self
+
         def invoke(self, prompt):
             captured["prompt"] = prompt
             return market.MarketAnalysis(figures=[], demand_drivers=[], market_risks=[], summary="", evidence_ids=[])
@@ -71,6 +74,9 @@ def test_extract_drops_unitless_and_unsourced(monkeypatch):
 
     class FakeLLM:
         def with_structured_output(self, _):
+            return self
+
+        def with_retry(self, **_):
             return self
 
         def invoke(self, _):
