@@ -1,7 +1,10 @@
 """웹 검색 공통 도우미 (Tavily). 검색 결과를 state.Source 형식 출처로 바꾸는 함수도 둔다."""
 import re
+import urllib.request
 from datetime import date
 from email.utils import parsedate_to_datetime
+from functools import lru_cache
+from urllib.parse import urlparse
 
 from langchain_tavily import TavilySearch
 
@@ -55,12 +58,43 @@ def date_from_url(url: str) -> str:
     return ""
 
 
-def source_date(r: dict) -> str:
-    """검색 결과의 게시일. Tavily 게시일(뉴스 검색)이 없으면 URL에서 찾고, 둘 다 없으면 빈 문자열."""
+# 기사 페이지의 게시일 메타 태그 (article:published_time, JSON-LD datePublished 등)
+_META_DATE = re.compile(r"""(?:article:published_time|datePublished|pubdate|publish-date|dateCreated)["']?\s*"""
+                        r"""(?:content|:)\s*=?\s*["'](20\d{2})[-./]?(\d{2})[-./]?(\d{2})""", re.I)
+
+
+@lru_cache(maxsize=512)
+def date_from_page(url: str) -> str:
+    """기사 페이지를 읽어 게시일 메타 태그에서 날짜를 찾는다. 못 읽거나 없으면 빈 문자열.
+    Tavily 게시일도 URL 날짜도 없어 보고서 REFERENCE에 '날짜 미상'이 많이 남았다. 메타 태그를 확인한
+    기사는 Tavily 게시일과 모두 일치해 같은 기준으로 쓴다. 문서용 예약 도메인(example.org 등)은 요청하지 않는다."""
+    host = urlparse(url).hostname or ""
+    if not url.startswith(("http://", "https://")) or host.split(".")[-2:-1] == ["example"]:
+        return ""
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(request, timeout=4) as response:
+            html = response.read(300_000).decode("utf-8", "ignore")
+    except Exception:  # noqa: BLE001 - 날짜를 못 읽어도 출처 기록은 계속한다
+        return ""
+    for y, m, d in _META_DATE.findall(html):
+        try:
+            found = date(int(y), int(m), int(d))
+        except ValueError:
+            continue
+        if found <= date.today():
+            return found.isoformat()
+    return ""
+
+
+def source_date(r: dict, read_page: bool = False) -> str:
+    """검색 결과의 게시일. Tavily 게시일(뉴스 검색) → URL 속 날짜 → (read_page=True면) 기사 페이지 메타 태그 순.
+    페이지 읽기는 시간이 들어, 출처로 기록할 때(to_source)만 한다. 모두 없으면 빈 문자열."""
     try:
         return parsedate_to_datetime(r["published_date"]).strftime("%Y-%m-%d")
     except (KeyError, TypeError, ValueError):
-        return date_from_url(r.get("url", ""))  # 일반 웹 검색은 게시일을 주지 않는다
+        pass  # 일반 웹 검색은 게시일을 주지 않는다
+    return date_from_url(r.get("url", "")) or (date_from_page(r.get("url", "")) if read_page else "")
 
 
 def to_source(r: dict, company: str, node: str) -> dict:
@@ -72,7 +106,7 @@ def to_source(r: dict, company: str, node: str) -> dict:
         "kind": "web",
         "title": (title or r["title"]).strip(),
         "publisher": publisher.strip() if title else "",
-        "date": source_date(r),
+        "date": source_date(r, read_page=True),
         "url": r["url"],
         "snippet": r["content"][:800],
     }
