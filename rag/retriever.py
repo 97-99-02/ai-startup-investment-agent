@@ -34,22 +34,9 @@ def get_retriever(doc_type: str, k: int = 4):
 
 
 def document_source_id(doc: Document) -> str:
-    """청크 ID가 있으면 그것을, 없으면 문서·페이지·본문 해시를 출처 키로 쓴다."""
-    chunk_id = doc.metadata.get("chunk_id")
-    if chunk_id is not None:
-        return f"chunk:{chunk_id}"
+    """문서명·페이지·본문 해시로 근거를 식별한다."""
     digest = sha256(doc.page_content.encode("utf-8")).hexdigest()[:12]
     return f"report:{doc.metadata.get('source', '')}:p{doc.metadata.get('page', '')}:{digest}"
-
-
-def get_document_by_chunk_id(chunk_id: int) -> Document | None:
-    """State에 기록된 청크 ID로 Chroma 원문을 바로 읽는다. 없으면 None."""
-    found = get_vectorstore().get(where={"chunk_id": chunk_id},
-                                  include=["documents", "metadatas"])
-    if not found["ids"]:
-        return None
-    return Document(page_content=found["documents"][0],
-                    metadata=found["metadatas"][0])
 
 
 def to_source(doc, company: str, node: str) -> dict:
@@ -72,6 +59,4 @@ def to_source(doc, company: str, node: str) -> dict:
         "snippet": doc.page_content[:800],
         "page": m.get("page"),
     }
-    if m.get("chunk_id") is not None:
-        source["chunk_id"] = m["chunk_id"]
     return source

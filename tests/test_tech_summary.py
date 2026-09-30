@@ -13,13 +13,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from langchain_core.documents import Document
-from langchain_core.embeddings import FakeEmbeddings
-from langchain_chroma import Chroma
 
 from agents import tech_summary as tech
 from config import EMBEDDING_MODEL
 from rag import embeddings
-from rag import retriever as rag_retriever
 
 FIXTURE = json.loads(
     (Path(__file__).parent / "fixtures" / "tech_summary_dummy.json").read_text(encoding="utf-8")
@@ -151,10 +148,11 @@ class TechSummaryTests(unittest.TestCase):
         source_ids = {source["source_id"] for source in result["sources"]}
         self.assertTrue(all(trace["source_id"] in source_ids
                             for trace in result["tech_summary"]["evidence"]))
-        self.assertEqual(result["sources"][0]["chunk_id"], 101)
-        self.assertEqual(result["tech_summary"]["evidence"][0]["chunk_id"], 101)
+        self.assertTrue(result["sources"][0]["source_id"].startswith("report:company_brief.md:p1:"))
+        self.assertNotIn("chunk_id", result["sources"][0])
+        self.assertNotIn("chunk_id", result["tech_summary"]["evidence"][0])
         self.assertEqual(result["tech_summary"]["evidence"][0]["source_file"],
-                         "chunk_101_company_brief.md")
+                         "company_brief.md")
         self.assertTrue(all((PROJECT_ROOT / source["source_path"]).is_file()
                             for source in result["sources"]))
         self.assertEqual(result["tech_summary"]["evidence"][3]["url"],
@@ -177,15 +175,15 @@ class TechSummaryTests(unittest.TestCase):
         ]
         for field, label in labels.items():
             lines.extend(["", f"## {label}", *[f"- {value}" for value in result["tech_summary"][field]]])
-            lines.extend(
-                f"  - 근거: {trace['source_id']} · \"{trace['quote']}\""
-                for trace in result["tech_summary"]["evidence"] if trace["field"] == field
-            )
+            for trace in result["tech_summary"]["evidence"]:
+                if trace["field"] == field:
+                    page = f" p.{trace['page']}" if trace.get("page") is not None else ""
+                    lines.append(f"  - 근거: {trace['title']}{page} · \"{trace['quote']}\"")
         lines.extend(["", "## 사용한 출처"])
         for source in result["sources"]:
             local_file = (PROJECT_ROOT / source["source_path"]).resolve()
             lines.append(
-                f"- {source['source_id']}: [{source['title']}]({local_file}) "
+                f"- [{source['title']}]({local_file}) "
                 f"({source['kind']}, 원본 파일)"
             )
         markdown = "\n".join(lines) + "\n"
@@ -218,20 +216,6 @@ class TechSummaryTests(unittest.TestCase):
             ]))
             self.assertEqual(tech._grounded("테스트칩", [item]), [])
 
-    def test_chunk_id_resolves_original_document(self):
-        doc = fixture_document(FIXTURE["documents"][0])
-        with tempfile.TemporaryDirectory() as directory:
-            store = Chroma.from_documents(
-                [doc], FakeEmbeddings(size=8), collection_name="chunk_lookup_test",
-                persist_directory=directory)
-            with patch.object(rag_retriever, "get_vectorstore", return_value=store):
-                found = rag_retriever.get_document_by_chunk_id(101)
-                missing = rag_retriever.get_document_by_chunk_id(999)
-        self.assertEqual(found.page_content, doc.page_content)
-        self.assertEqual(found.metadata["source"], "chunk_101_company_brief.md")
-        self.assertIsNone(missing)
-
-
 @unittest.skipUnless(os.getenv("RUN_KURE_INTEGRATION") == "1",
                      "RUN_KURE_INTEGRATION=1 일 때 실제 KURE-v1 모델을 로드한다")
 class KureChromaIntegrationTests(unittest.TestCase):
@@ -249,7 +233,7 @@ class KureChromaIntegrationTests(unittest.TestCase):
             results = store.similarity_search(
                 "가온-X1 7nm 테이프아웃", k=2, filter={"doc_type": "tech"})
             self.assertEqual(len(results), 2)
-            self.assertEqual(results[0].metadata["source"], "chunk_101_company_brief.md")
+            self.assertEqual(results[0].metadata["source"], "company_brief.md")
             self.assertTrue(all(doc.metadata["doc_type"] == "tech" for doc in results))
 
 

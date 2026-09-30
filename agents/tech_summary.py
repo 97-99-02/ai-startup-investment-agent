@@ -193,7 +193,7 @@ def tech_summary_node(state: dict) -> dict:
             "title": source["title"],
         }
         if source["kind"] == "report":
-            trace.update({key: source[key] for key in ("chunk_id", "source_file", "source_path", "page")
+            trace.update({key: source[key] for key in ("source_file", "source_path", "page")
                           if key in source})
         else:
             trace["url"] = source["url"]

@@ -191,7 +191,7 @@ def parse_quantities(text: str) -> list[dict]:
 # 정답지 만들기
 # ═════════════════════════════════════════════════════════════
 def _without_tech_trace(data: dict) -> dict:
-    """청크 ID·URL 등 추적용 메타데이터를 수치 정답지에서 제외한다."""
+    """출처 ID·URL 등 추적용 메타데이터를 수치 정답지에서 제외한다."""
     tech = data.get("tech_summary")
     if isinstance(tech, dict):
         return {**data, "tech_summary": {k: v for k, v in tech.items() if k != "evidence"}}

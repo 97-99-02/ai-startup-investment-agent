@@ -6,11 +6,10 @@
   },
   "documents": [
     {
-      "source_path": "tests/fixtures/sources/chunk_101_company_brief.md",
+      "source_path": "tests/fixtures/sources/company_brief.md",
       "metadata": {
         "doc_type": "tech",
-        "chunk_id": 101,
-        "source": "chunk_101_company_brief.md",
+        "source": "company_brief.md",
         "page": 1,
         "title": "가온칩테스트 기술 소개서 (가상)",
         "publisher": "가온칩테스트",
@@ -19,11 +18,10 @@
       }
     },
     {
-      "source_path": "tests/fixtures/sources/chunk_102_industry_context.md",
+      "source_path": "tests/fixtures/sources/industry_context.md",
       "metadata": {
         "doc_type": "tech",
-        "chunk_id": 102,
-        "source": "chunk_102_industry_context.md",
+        "source": "industry_context.md",
         "page": 2,
         "title": "엣지 반도체 일반 기술 보고서 (가상)",
         "publisher": "가상 연구소",
@@ -32,11 +30,10 @@
       }
     },
     {
-      "source_path": "tests/fixtures/sources/chunk_103_market_context.md",
+      "source_path": "tests/fixtures/sources/market_context.md",
       "metadata": {
         "doc_type": "market",
-        "chunk_id": 103,
-        "source": "chunk_103_market_context.md",
+        "source": "market_context.md",
         "page": 1,
         "title": "시장 동향 보고서 (가상)",
         "publisher": "가상 연구소",
