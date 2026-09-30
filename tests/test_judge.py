@@ -249,3 +249,47 @@ def test_history_from_other_version_is_ignored(monkeypatch, isolated_log):
     write_history(isolated_log, [40, 42], "보류", "old-version")            # 평가 로직이 바뀌기 전 기록
     out, calls = run_node_by_seed(monkeypatch, {judge.LLM_SEED: card()})
     assert calls == [judge.LLM_SEED] and out["scores"]["decision"] == "투자"
+
+
+def test_median_uses_final_scores_after_evidence_rules():
+    """출처가 없어 2점으로 깎일 5점이 중앙값으로 뽑히지 않는다 (최종 점수 2·4·1의 중앙값은 2)."""
+    samples = [card(market=item(5, ids=())), card(market=item(4)), card(market=item(1))]
+    sources = judge.company_sources(STATE)
+    merged = judge.median_card(samples, STATE, sources)
+    assert judge.score_card(merged, STATE, sources)["items"]["market"]["score"] == 2
+
+
+def test_median_legal_risk_follows_effective_majority():
+    """출처 규칙을 적용한 실제 판정(미해소·해소·해소)의 다수인 '해소'를 따른다."""
+    samples = [card(legal=True, legal_ids=(0,)), card(legal=True, legal_ids=()), card(legal=False)]
+    sources = judge.company_sources(STATE)
+    merged = judge.median_card(samples, STATE, sources)
+    assert judge.score_card(merged, STATE, sources)["legal_risk"]["unresolved"] is False
+
+
+def test_rescore_failure_keeps_first_result(monkeypatch, isolated_log):
+    import json
+    write_history(isolated_log, [60, 62], "보류", judge.eval_version())
+    calls = []
+
+    class Fake:
+        def __init__(self, *a, seed=None, **k): self.seed = seed
+        def with_structured_output(self, _): return self
+        def with_retry(self, **_): return self
+        def invoke(self, prompt):
+            calls.append(self.seed)
+            if self.seed != judge.LLM_SEED:
+                raise TimeoutError("rate limit")
+            return card()
+    monkeypatch.setattr(judge, "ChatOpenAI", Fake)
+    out = judge.judge_node(STATE)
+    assert out["scores"]["total"] == 80.0
+    c = json.loads(isolated_log.read_text(encoding="utf-8").splitlines()[-1])["consistency"]
+    assert not c["rescored"] and "rate limit" in c["rescore_error"]
+
+
+def test_history_skips_broken_lines(isolated_log):
+    import json
+    good = json.dumps({"company": "A", "total": 70, "decision": "투자", "eval_version": "v"}, ensure_ascii=False)
+    isolated_log.write_bytes((good + "\n[1, 2]\n" + good[:-5]).encode("utf-8") + "평가".encode("utf-8")[:-1])
+    assert len(judge.past_records("A", "v")) == 1
