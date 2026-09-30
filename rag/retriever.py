@@ -7,9 +7,11 @@
     sources = [to_source(d, company="모빌린트", node="tech_summary") for d in docs]  # state.Source 형식
 """
 from functools import lru_cache
+from hashlib import sha256
 from pathlib import Path
 
 from langchain_chroma import Chroma
+from langchain_core.documents import Document
 
 from config import CHROMA_DIR, DOC_TYPES
 from rag.embeddings import get_embeddings
@@ -31,13 +33,38 @@ def get_retriever(doc_type: str, k: int = 4):
     return get_vectorstore().as_retriever(search_kwargs={"k": k, "filter": {"doc_type": doc_type}})
 
 
+def document_source_id(doc: Document) -> str:
+    """청크 ID가 있으면 그것을, 없으면 문서·페이지·본문 해시를 출처 키로 쓴다."""
+    chunk_id = doc.metadata.get("chunk_id")
+    if chunk_id is not None:
+        return f"chunk:{chunk_id}"
+    digest = sha256(doc.page_content.encode("utf-8")).hexdigest()[:12]
+    return f"report:{doc.metadata.get('source', '')}:p{doc.metadata.get('page', '')}:{digest}"
+
+
+def get_document_by_chunk_id(chunk_id: int) -> Document | None:
+    """State에 기록된 청크 ID로 Chroma 원문을 바로 읽는다. 없으면 None."""
+    found = get_vectorstore().get(where={"chunk_id": chunk_id},
+                                  include=["documents", "metadatas"])
+    if not found["ids"]:
+        return None
+    return Document(page_content=found["documents"][0],
+                    metadata=found["metadatas"][0])
+
+
 def to_source(doc, company: str, node: str) -> dict:
     """검색된 청크를 state.Source 형식(kind="report")으로 바꾼다. 보고서 REFERENCE에 그대로 쓰인다."""
     m = doc.metadata
-    return {
+    source = {
         "company": company,
         "node": node,
         "kind": "report",
+        "source_id": document_source_id(doc),
+        "source_file": m.get("source", ""),
+        "source_path": m.get("source_path") or (
+            f"data/{m['doc_type']}/{m['source']}"
+            if m.get("doc_type") and m.get("source") else ""
+        ),
         "title": m.get("title", m.get("source", "")),
         "publisher": m.get("publisher", ""),
         "date": m.get("year", ""),
@@ -45,3 +72,6 @@ def to_source(doc, company: str, node: str) -> dict:
         "snippet": doc.page_content[:800],
         "page": m.get("page"),
     }
+    if m.get("chunk_id") is not None:
+        source["chunk_id"] = m["chunk_id"]
+    return source

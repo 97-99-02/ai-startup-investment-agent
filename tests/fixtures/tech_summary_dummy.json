@@ -1,0 +1,71 @@
+{
+  "notice": "모든 기업명, 칩, 성능, 매출 및 계약은 테스트를 위해 만든 가상 정보입니다.",
+  "company": {
+    "name": "가온칩테스트",
+    "segment": "엣지"
+  },
+  "documents": [
+    {
+      "source_path": "tests/fixtures/sources/chunk_101_company_brief.md",
+      "metadata": {
+        "doc_type": "tech",
+        "chunk_id": 101,
+        "source": "chunk_101_company_brief.md",
+        "page": 1,
+        "title": "가온칩테스트 기술 소개서 (가상)",
+        "publisher": "가온칩테스트",
+        "year": "2026",
+        "url": ""
+      }
+    },
+    {
+      "source_path": "tests/fixtures/sources/chunk_102_industry_context.md",
+      "metadata": {
+        "doc_type": "tech",
+        "chunk_id": 102,
+        "source": "chunk_102_industry_context.md",
+        "page": 2,
+        "title": "엣지 반도체 일반 기술 보고서 (가상)",
+        "publisher": "가상 연구소",
+        "year": "2026",
+        "url": ""
+      }
+    },
+    {
+      "source_path": "tests/fixtures/sources/chunk_103_market_context.md",
+      "metadata": {
+        "doc_type": "market",
+        "chunk_id": 103,
+        "source": "chunk_103_market_context.md",
+        "page": 1,
+        "title": "시장 동향 보고서 (가상)",
+        "publisher": "가상 연구소",
+        "year": "2026",
+        "url": ""
+      }
+    }
+  ],
+  "web_results": [
+    {
+      "title": "가온칩테스트 가온-X1 시제품 성능 공개 - 가상뉴스",
+      "source_path": "tests/fixtures/sources/performance_article.md",
+      "url": "https://example.org/fictional/performance",
+      "published_date": "Tue, 29 Sep 2026 00:00:00 GMT"
+    },
+    {
+      "title": "가온칩테스트 매출 및 공급계약 공시 - 가상뉴스",
+      "source_path": "tests/fixtures/sources/business_article.md",
+      "url": "https://example.org/fictional/business",
+      "published_date": "Tue, 29 Sep 2026 00:00:00 GMT"
+    }
+  ],
+  "expected": {
+    "core_chips": "엣지 추론용 NPU 가온-X1 개발",
+    "process": "7nm 공정 설계",
+    "development_stage": "2026년 3월 테이프아웃 완료",
+    "performance_metrics": "시제품 성능 24 TOPS, 소비 전력 8 W",
+    "strengths": "저전력 설계",
+    "weaknesses": "성능 독립 검증 결과 미공개",
+    "public_revenue_contracts": "2025년 매출 12억 원 발표 및 2026년 4월 시제품 300개 공급계약 체결"
+  }
+}

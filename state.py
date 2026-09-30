@@ -14,6 +14,10 @@ class Source(TypedDict, total=False):
     url: str
     snippet: str        # 근거로 쓴 원문 일부 (사실 검증에 사용)
     page: int           # RAG 문서 출처의 쪽 번호 (웹 출처는 없음)
+    source_id: str      # 기술 요약 주장과 이 출처를 연결하는 키 (청크 재적재 시 변경 가능)
+    chunk_id: int       # Chroma 청크 ID (RAG 문서, 재적재 시 변경 가능)
+    source_file: str    # 청크가 나온 원본 문서 파일명
+    source_path: str    # 프로젝트 루트 기준 원본 파일 위치 (있을 때)
 
 
 class GraphState(TypedDict, total=False):

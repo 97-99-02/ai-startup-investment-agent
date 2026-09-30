@@ -190,8 +190,17 @@ def parse_quantities(text: str) -> list[dict]:
 # ═════════════════════════════════════════════════════════════
 # 정답지 만들기
 # ═════════════════════════════════════════════════════════════
+def _without_tech_trace(data: dict) -> dict:
+    """청크 ID·URL 등 추적용 메타데이터를 수치 정답지에서 제외한다."""
+    tech = data.get("tech_summary")
+    if isinstance(tech, dict):
+        return {**data, "tech_summary": {k: v for k, v in tech.items() if k != "evidence"}}
+    return data
+
+
 def _evidence_json(state: dict) -> str:
-    return json.dumps({k: state.get(k) for k in EVIDENCE_KEYS}, ensure_ascii=False)
+    return json.dumps(_without_tech_trace({k: state.get(k) for k in EVIDENCE_KEYS}),
+                      ensure_ascii=False)
 
 
 def _body_of(report: str) -> str:
@@ -448,7 +457,8 @@ def extract_rag_claims(report: str) -> list[str]:
 
 
 def _pairs_of(data) -> set:
-    return {(q["value"], q["unit"]) for q in parse_quantities(json.dumps(data, ensure_ascii=False))}
+    return {(q["value"], q["unit"]) for q in
+            parse_quantities(json.dumps(_without_tech_trace(data), ensure_ascii=False))}
 
 
 def _found_in(q: dict, pairs: set) -> bool:
@@ -760,4 +770,3 @@ def verifier_node(state: dict, judge_llm=None, retriever=None) -> dict:
             result["finalized"] = True
         update["report"] = add_verification_note(final_report, build_verification_note(result, scores))
     return update
-
