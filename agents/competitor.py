@@ -47,7 +47,7 @@ Tier = Literal["선도 기업", "동급 기업"]
 class SegmentLabel(BaseModel):
     index: int = Field(description="기업 목록의 번호")
     in_segment: bool = Field(description="이 기업이 해당 세부 분야용 칩 제품을 판매하거나 개발 중인가 (검색 결과 근거)")
-    tier: Tier = Field(description="선도 기업: 대기업 또는 상장사 / 동급 기업: 비상장 스타트업")
+    tier: Tier = Field(description="선도 기업: 대기업(계열사 포함) 또는 코스피·코스닥·해외 증시 상장사 / 동급 기업: 비상장 스타트업")
 
 
 class SegmentLabels(BaseModel):
@@ -57,7 +57,9 @@ class SegmentLabels(BaseModel):
 LABEL_PROMPT = """아래 기업들이 '{segment}' 분야용 칩 제품을 판매하거나 개발 중인지, 그리고 기업 구분(tier)을 검색 결과를 근거로 판정하라.
 {segment_rules}
 여러 분야를 하는 대기업은 '{segment}' 분야 제품이 있으면 in_segment=true다. 근거가 없으면 false로 둔다.
-기업 구분: 대기업이거나 상장사면 "선도 기업", 비상장 스타트업이면 "동급 기업".
+기업 구분: 대기업(계열사 포함)이거나 코스피·코스닥·해외 증시에 상장한 기업이면 "선도 기업", 비상장 스타트업이면 "동급 기업".
+스타트업으로 출발했더라도 이미 상장을 마쳤으면 "선도 기업"이다. 반대로 상장 추진, 상장 예비심사 청구, 프리IPO 투자,
+IPO 준비 단계는 아직 비상장이므로 "동급 기업"이다. 주가·시가총액·상장일이 기사에 나오면 상장사로 본다.
 기업 목록 (번호 그대로 index에 넣어라):
 {names}
 
@@ -105,10 +107,13 @@ def competitor_node(state: dict) -> dict:
     names = [x["name"] for x in analysis["competitors"]]
     if names:
         listing = "\n".join(f"{i}. {n}" for i, n in enumerate(names))
-        # 경쟁사마다 주력 칩을 한 번씩 검색해 분야 판정의 근거로 쓴다
+        # 경쟁사마다 주력 칩과 상장 여부를 검색해 분야·기업 구분 판정의 근거로 쓴다
+        # (칩 검색만으로는 상장 정보가 안 잡혀 코스닥 상장사 파두를 비상장으로 판정한 적이 있음)
         evidence = []
         for n in names:
-            evidence += search_many([f"{n.split('(')[0].strip()} {kw} 칩"], max_results=2, topic="general")
+            short = n.split("(")[0].strip()
+            # 상장사는 주가·시가총액 기사가 있고 비상장사는 없다 ("상장 IPO"로 찾으면 상장 추진 기사가 섞였음)
+            evidence += search_many([f"{short} {kw} 칩", f"{short} 주가 시가총액"], max_results=2, topic="general")
         labels = ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(SegmentLabels).invoke(
             LABEL_PROMPT.format(segment=segment, segment_rules=SEGMENT_RULES, names=listing, results=format_results(evidence, limit=600)))
         label_of = {l.index: l for l in labels.labels}  # 이름 표기가 달라도 맞도록 번호로 매칭
