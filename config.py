@@ -4,6 +4,13 @@
 MODEL_ANALYZE = "gpt-4.1-mini"   # 탐색, 기술 요약, 시장성, 경쟁사, 팀, 보고서
 # (탐색에 gpt-4.1-nano를 썼으나 해외 기업을 국내로 잘못 판정하고 대표자·제품 칸을 비워 mini로 통일)
 MODEL_JUDGE = "gpt-4.1"          # 투자 판단 (생성 모델과 다른 모델)
+# 분석·판단 LLM의 출력 상한과 재시도. 드물게 같은 내용을 반복 생성해 32,768토큰까지 가다 실패한 적이 있어
+# 상한을 두어 빨리 실패시키고 한 번 더 시도한다 (결과는 JSON이라 4,096토큰이면 충분)
+LLM_MAX_TOKENS = 4096
+LLM_ATTEMPTS = 2
+# 같은 입력이면 최대한 같은 응답이 나오게 한다 (OpenAI seed: 완전한 보장은 아님). temperature=0만으로는
+# 같은 기업 분석이 호출마다 달라져 점수가 흔들렸다
+LLM_SEED = 42
 
 # 2.3 임베딩: 후보 3종 비교 실험(eval/embedding) 결과 MRR@5·Hit@3 최고, 인코딩 최속
 EMBEDDING_MODEL = "nlpai-lab/KURE-v1"

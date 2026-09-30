@@ -10,7 +10,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from agents.web import format_results, search_many, to_source
-from config import MODEL_ANALYZE
+from config import LLM_ATTEMPTS, LLM_MAX_TOKENS, LLM_SEED, MODEL_ANALYZE
 
 
 class Member(BaseModel):
@@ -43,7 +43,7 @@ def team_node(state: dict) -> dict:
         queries.insert(0, f"{name} {ceo} 대표 경력")
     results = search_many(queries, max_results=5, topic="general")
     results = [r for r in results if name in r["title"] + r["content"]]
-    llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(TeamAnalysis)
+    llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(TeamAnalysis).with_retry(stop_after_attempt=LLM_ATTEMPTS)
     a = llm.invoke(PROMPT.format(name=name, ceo=ceo or "확인되지 않음", results=format_results(results)))
     used = [results[i] for i in a.evidence_ids if 0 <= i < len(results)]
     return {

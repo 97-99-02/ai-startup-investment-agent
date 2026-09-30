@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from agents.explorer import SEGMENT_RULES
 from agents.web import format_results, search_many, to_source
-from config import MODEL_ANALYZE
+from config import LLM_ATTEMPTS, LLM_MAX_TOKENS, LLM_SEED, MODEL_ANALYZE
 
 # 세부 분야별 검색 키워드 (경쟁사를 같은 분야에서 찾기 위함)
 SEGMENT_KEYWORDS = {
@@ -96,7 +96,7 @@ def _rewrite_with_tier(prompt: str, analysis: dict, bases: list[str]) -> tuple[d
     확정된 구분을 알려주고 같은 검색 결과로 비교 문장·차별점·리스크를 다시 쓴다."""
     comps = analysis["competitors"]
     tiers = "\n".join(f"- {x['name']}: {x['tier']} ({basis})" for x, basis in zip(comps, bases))
-    a = ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(CompetitorAnalysis).invoke(
+    a = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(CompetitorAnalysis).with_retry(stop_after_attempt=LLM_ATTEMPTS).invoke(
         prompt + TIER_NOTE.format(tiers=tiers))
     # 다시 쓸 때 기업 순서가 바뀐 적이 있어 번호가 아니라 이름으로 짝짓는다. 짝이 없는 기업은 처음 문장을 둔다
     rewritten = {_norm(new.name): new.comparison for new in a.competitors}
@@ -125,7 +125,7 @@ def competitor_node(state: dict) -> dict:
     ], max_results=5)
     results += search_many([SEGMENT_KEYWORDS_EN.get(segment, "AI chip companies")], max_results=5, topic="general")
     prompt = PROMPT.format(name=name, segment=segment, product=product, results=format_results(results))
-    a = ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(CompetitorAnalysis).invoke(prompt)
+    a = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(CompetitorAnalysis).with_retry(stop_after_attempt=LLM_ATTEMPTS).invoke(prompt)
     evidence_ids = list(a.evidence_ids)
     analysis = a.model_dump(exclude={"evidence_ids"})
     # 다른 세부 분야 기업은 비교 대상에서 뺀다 (설계 1.3: 경쟁사 비교는 세부 분야 기준).
@@ -143,7 +143,7 @@ def competitor_node(state: dict) -> dict:
             short = n.split("(")[0].strip()
             # 상장사는 주가·시가총액 기사가 있고 비상장사는 없다 ("상장 IPO"로 찾으면 상장 추진 기사가 섞였음)
             evidence += search_many([f"{short} {kw} 칩", f"{short} 주가 시가총액"], max_results=2, topic="general")
-        labels = ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(SegmentLabels).invoke(
+        labels = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(SegmentLabels).with_retry(stop_after_attempt=LLM_ATTEMPTS).invoke(
             LABEL_PROMPT.format(segment=segment, segment_rules=SEGMENT_RULES, names=listing, results=format_results(evidence, limit=600)))
         label_of = {l.index: l for l in labels.labels}  # 이름 표기가 달라도 맞도록 번호로 매칭
         for i, x in enumerate(analysis["competitors"]):
