@@ -28,9 +28,12 @@ def search_many(queries: list[str], max_results: int = 8, topic: str = "news") -
 
 
 def format_results(results: list[dict], limit: int = 1200) -> str:
-    """LLM 프롬프트에 넣을 형태. [번호]로 결과를 구분해 근거 url을 고를 수 있게 한다."""
+    """LLM 프롬프트에 넣을 형태. [번호]로 결과를 구분해 근거 url을 고를 수 있게 한다.
+    게시일을 함께 넣는다. 날짜가 없으면 LLM이 "가장 최근 기사를 따른다"는 규칙을 지킬 수 없어,
+    2026년 시리즈 B 기사 본문에 나온 '2024년 5월 시리즈 A' 날짜를 시리즈 B 시기로 뽑은 적이 있다."""
     return "\n\n".join(
-        f"[{i}] {r['title']}\nURL: {r['url']}\n{r['content'][:limit]}" for i, r in enumerate(results)
+        f"[{i}] {r['title']} ({source_date(r) or '날짜 미상'})\nURL: {r['url']}\n{r['content'][:limit]}"
+        for i, r in enumerate(results)
     )
 
 
