@@ -44,6 +44,7 @@ def run_node(monkeypatch, c, state=STATE):
     class Fake:
         def __init__(self, *a, **k): pass
         def with_structured_output(self, _): return self
+        def with_retry(self, **_): return self
         def invoke(self, prompt): return c
     monkeypatch.setattr(judge, "ChatOpenAI", Fake)
     return judge.judge_node(state)
@@ -198,3 +199,53 @@ def test_node_returns_cautions_and_logs_them(monkeypatch, isolated_log):
     assert scores["decision"] == "투자" and [c["item"] for c in scores["cautions"]] == ["tech"]
     logged = json.loads(isolated_log.read_text(encoding="utf-8"))
     assert logged["cautions"] == [c["comment"] for c in scores["cautions"]]
+
+
+# ── 평가 기록과 비교한 재채점 ─────────────────────────────────
+def run_node_by_seed(monkeypatch, cards_by_seed, state=STATE):
+    """seed마다 다른 채점 결과를 돌려주는 가짜 LLM으로 노드를 실행한다."""
+    calls = []
+
+    class Fake:
+        def __init__(self, *a, seed=None, **k): self.seed = seed
+        def with_structured_output(self, _): return self
+        def with_retry(self, **_): return self
+        def invoke(self, prompt):
+            calls.append(self.seed)
+            return cards_by_seed[self.seed]
+    monkeypatch.setattr(judge, "ChatOpenAI", Fake)
+    return judge.judge_node(state), calls
+
+
+def write_history(path, totals, decision, version):
+    import json
+    with path.open("w", encoding="utf-8") as f:
+        for t in totals:
+            f.write(json.dumps({"company": "A", "total": t, "decision": decision, "eval_version": version}) + "\n")
+
+
+def test_no_history_scores_once(monkeypatch, isolated_log):
+    import json
+    out, calls = run_node_by_seed(monkeypatch, {judge.LLM_SEED: card()})
+    assert calls == [judge.LLM_SEED] and out["scores"]["decision"] == "투자"
+    rec = json.loads(isolated_log.read_text(encoding="utf-8"))
+    assert rec["eval_version"] == judge.eval_version() and rec["consistency"] == {"history": 0, "rescored": False}
+
+
+def test_inconsistent_with_history_rescores_with_median(monkeypatch, isolated_log):
+    import json
+    write_history(isolated_log, [60, 62], "보류", judge.eval_version())      # 같은 버전의 과거 기록: 보류
+    first = card()                                                          # 처음 채점: 전 항목 4점 → 80점 투자
+    low = card(**{k: item(3) for k in KEYS})                                # 재채점 2회: 전 항목 3점
+    out, calls = run_node_by_seed(monkeypatch, {judge.LLM_SEED: first, judge.LLM_SEED + 1: low, judge.LLM_SEED + 2: low})
+    assert calls == [judge.LLM_SEED, judge.LLM_SEED + 1, judge.LLM_SEED + 2]
+    assert out["scores"]["total"] == 60.0 and out["scores"]["decision"] == "보류"   # 항목별 중앙값 3점
+    rec = json.loads(isolated_log.read_text(encoding="utf-8").splitlines()[-1])
+    c = rec["consistency"]
+    assert c["rescored"] and c["first_total"] == 80.0 and c["history"] == 2 and not c["still_inconsistent"]
+
+
+def test_history_from_other_version_is_ignored(monkeypatch, isolated_log):
+    write_history(isolated_log, [40, 42], "보류", "old-version")            # 평가 로직이 바뀌기 전 기록
+    out, calls = run_node_by_seed(monkeypatch, {judge.LLM_SEED: card()})
+    assert calls == [judge.LLM_SEED] and out["scores"]["decision"] == "투자"
