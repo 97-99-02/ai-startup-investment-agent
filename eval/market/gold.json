@@ -1,7 +1,7 @@
 {
   "_note": [
     "시장성 평가 정답지 초안. find_candidates.py 결과를 보고 사람이 확인해 확정한다.",
-    "chunk_id는 rag.ingest.load_documents() 순서(OCR 보정 반영, 청크 430개 기준). 문서·청크 설정이 바뀌면 다시 확인한다.",
+    "chunk_id는 rag.ingest.load_documents() 순서(OCR 보정 반영, 청크 429개 기준). 문서·청크 설정이 바뀌면 다시 확인한다.",
     "company.name은 프롬프트 표시용이다. 검색 질의에는 들어가지 않는다.",
     "primary=true: 반드시 뽑아야 하는 대표 수치 (재현율 분모). primary=false: 뽑혀도 오답이 아닌 해당 분야 수치 (정밀도 계산에만 인정).",
     "chunk_ids: 수치가 나오는 청크. 이 중 하나만 LLM에 들어가면 된다.",
@@ -57,7 +57,7 @@
           "scope": "데이터센터용 반도체",
           "doc_type": "market",
           "chunk_ids": [
-            425
+            424
           ],
           "primary": false
         },
@@ -68,7 +68,7 @@
           "scope": "데이터센터용 반도체",
           "doc_type": "market",
           "chunk_ids": [
-            425
+            424
           ],
           "primary": false
         },
@@ -79,7 +79,7 @@
           "scope": "데이터센터용 반도체",
           "doc_type": "market",
           "chunk_ids": [
-            425
+            424
           ],
           "primary": false
         },
@@ -410,7 +410,7 @@
           "scope": "CXL 메모리",
           "doc_type": "market",
           "chunk_ids": [
-            392
+            391
           ],
           "primary": true
         },
@@ -421,7 +421,7 @@
           "scope": "CXL 메모리",
           "doc_type": "market",
           "chunk_ids": [
-            392
+            391
           ],
           "primary": true
         },
@@ -498,7 +498,7 @@
           "scope": "메모리 반도체",
           "doc_type": "market",
           "chunk_ids": [
-            427
+            426
           ],
           "primary": false
         },
@@ -509,7 +509,7 @@
           "scope": "메모리 반도체",
           "doc_type": "market",
           "chunk_ids": [
-            427
+            426
           ],
           "primary": false
         },
