@@ -7,6 +7,15 @@
 - Method : LangGraph Multi-Agent, Agentic RAG (Corrective RAG, Self-RAG)
 - Tools : Tavily 웹 검색, Chroma 벡터 DB
 
+
+## 시각화
+해당 프로젝트가 실행되는 전 과정은 아래 Repo를 통해 시각화 하였습니다.
+
+> 📌 https://github.com/97-99-02/web.git
+
+<img width="1410" height="867" alt="image" src="https://github.com/user-attachments/assets/13b5a477-6953-4af0-8684-ceb1ae8bc7da" />
+
+
 ## 차별점
 
 | # | 차별점 | 어떻게 | 코드 |
