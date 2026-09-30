@@ -87,6 +87,10 @@ SYSTEM_PROMPT = """당신은 AI 반도체 스타트업 투자 보고서를 쓰�
 15. '한계점' 장에는 평가 대상 기업에 대한 조언(연구개발 강화, 자금 조달 계획 등)을 쓰지 않습니다.
     이 평가 자체의 한계(공개 정보 부족으로 점수가 제한된 항목, evaluation_rules의 평가 방식에서 오는 한계,
     웹 검색·문서 범위의 한계)와 평가 방법의 개선 방향을 씁니다.
+16. 기술 요약의 기존 7개 항목은 기업 웹 사실이고 industry_context는 보고서 기반 업계 해석입니다.
+    기업 사실은 웹 출처를, 업계 해석은 연결된 기업 웹 출처와 보고서 출처를 함께 인용합니다.
+    conditions_missing은 비교 조건이 부족하다는 뜻이므로 기술 우위·업계 순위로 표현하지 않습니다.
+    업계 보고서의 수치를 기업의 양산·매출·계약 실적으로 바꾸지 않습니다.
 """
 
 # 투자 추천 기업이 있을 때의 목차
@@ -585,6 +589,9 @@ def build_materials(state: dict, sources: list[dict]) -> dict:
     """LLM에게 줄 '분석 자료' 묶음을 만든다. (자료에 없는 건 LLM이 못 쓰게 하려는 것)"""
     if _is_recommend_mode(state):
         materials = {key: state[key] for key in ANALYSIS_KEYS}
+        if isinstance(materials.get("tech_summary"), dict):
+            materials["tech_summary"] = {k: v for k, v in materials["tech_summary"].items()
+                                        if k != "diagnostics"}
         # LLM이 [n]을 붙일 수 있도록 '번호 붙은 출처 목록'을 보여 준다(표기 원문은 코드가 관리)
         materials["sources_for_citation"] = [
             {"n": s["n"], "type": s["label"], "title": s["title"]} for s in sources

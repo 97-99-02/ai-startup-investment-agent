@@ -2,7 +2,8 @@
   "notice": "모든 기업명, 칩, 성능, 매출 및 계약은 테스트를 위해 만든 가상 정보입니다.",
   "company": {
     "name": "가온칩테스트",
-    "segment": "엣지"
+    "segment": "엣지",
+    "product": "가온-X1"
   },
   "documents": [
     {
@@ -44,6 +45,12 @@
   ],
   "web_results": [
     {
+      "title": "가온칩테스트 가온-X1 제품 소개 (가상)",
+      "source_path": "tests/fixtures/sources/company_brief.md",
+      "url": "https://example.org/fictional/product",
+      "published_date": "Tue, 29 Sep 2026 00:00:00 GMT"
+    },
+    {
       "title": "가온칩테스트 가온-X1 시제품 성능 공개 - 가상뉴스",
       "source_path": "tests/fixtures/sources/performance_article.md",
       "url": "https://example.org/fictional/performance",
@@ -64,5 +71,17 @@
     "strengths": "저전력 설계",
     "weaknesses": "성능 독립 검증 결과 미공개",
     "public_revenue_contracts": "2025년 매출 12억 원 발표 및 2026년 4월 시제품 300개 공급계약 체결"
+  },
+  "expected_context": {
+    "topic": "performance",
+    "text": "엣지 AI 칩은 TOPS/W와 메모리 대역폭을 함께 평가해야 한다. 가온-X1은 24 TOPS와 8 W를 공개했지만 정밀도·워크로드·전력 측정 범위가 확인되지 않아 업계 대비 수치 우위를 단정할 수 없다.",
+    "quote": "엣지 AI 반도체는 전력 대비 연산 성능(TOPS/W)과 메모리 대역폭이 추론 성능을 좌우한다.",
+    "comparison": "conditions_missing"
+  },
+  "expected_process_context": {
+    "topic": "process",
+    "text": "가온-X1의 7nm 공정은 보고서가 설명하는 7nm 이하 공정에 해당한다. 보고서는 전력 효율의 장점과 높은 테이프아웃 비용의 부담을 함께 제시하며, 공정만으로 해당 칩의 성능 우위를 확인할 수는 없다.",
+    "quote": "7nm 이하 공정은 전력 효율에 유리하지만 테이프아웃 비용이 높아 초기 기업에는 부담이 된다.",
+    "comparison": "context_only"
   }
 }

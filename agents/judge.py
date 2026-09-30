@@ -92,6 +92,12 @@ PROMPT = """너는 AI 반도체 VC의 투자 심사역이다. '{name}'을 아래
 8. risks에는 투자 시 고려할 시장·기술·규제·경쟁·운영 리스크를 분석 자료에서 골라 쓴다.
 9. 계획·예정·목표·추진 중인 일은 달성한 것으로 인정하지 않는다. 테이프아웃 완료 예정은 테이프아웃 완료가 아니고,
    양산 예정·목표는 양산 시작이 아니며, 계약 논의·협의 중은 계약 체결이 아니다. 완료가 확인된 사실만 해당 점수 조건으로 본다.
+10. tech_summary의 기존 7개 항목과 evidence는 기업 웹 사실이고, industry_context는 보고서 기반 업계 해석이다.
+    업계 해석이나 보고서의 수치를 해당 기업의 칩·양산·매출·계약 실적으로 인정하지 않는다.
+    tech는 기업의 development_stage와 연결된 웹 근거로 판단한다. info_insufficient는 전체 요약의
+    누락 여부이므로 공정·약점·계약 등 다른 항목의 누락만으로 tech를 정보 부족 처리하지 않는다.
+    industry_context가 없거나 비교 조건이 부족해도 웹으로 확인된 개발 단계의 근거는 유지한다.
+    경쟁 우위의 수치 비교는 동일 조건이 확인된 경우만 사용한다.
 
 [분석 자료]
 {materials}
@@ -231,6 +237,10 @@ def judge_node(state: dict) -> dict:
     sources = company_sources(state)
     materials = {k: state.get(k) for k in
                  ("company", "tech_summary", "market_analysis", "competitor_analysis", "team_analysis")}
+
+    if isinstance(materials.get("tech_summary"), dict):
+        materials["tech_summary"] = {k: v for k, v in materials["tech_summary"].items()
+                                    if k != "diagnostics"}
 
     llm = ChatOpenAI(model=MODEL_JUDGE, temperature=0).with_structured_output(Scorecard)
     card = llm.invoke(PROMPT.format(
