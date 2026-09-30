@@ -99,10 +99,12 @@ def _rewrite_with_tier(prompt: str, analysis: dict, bases: list[str]) -> tuple[d
     a = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(CompetitorAnalysis).with_retry(stop_after_attempt=LLM_ATTEMPTS).invoke(
         prompt + TIER_NOTE.format(tiers=tiers))
     # 다시 쓸 때 기업 순서가 바뀐 적이 있어 번호가 아니라 이름으로 짝짓는다. 짝이 없는 기업은 처음 문장을 둔다
-    rewritten = {_norm(new.name): new.comparison for new in a.competitors}
+    rewritten = {_norm(new.name): new.comparison for new in a.competitors if _norm(new.name)}
     for x in comps:
         key = _norm(x["name"])
-        match = rewritten.get(key) or next((t for k, t in rewritten.items() if k in key or key in k), None)
+        partial = [t for k, t in rewritten.items() if k in key or key in k]
+        # 정확히 같은 이름을 먼저 쓰고, 부분 일치는 후보가 하나일 때만 쓴다 ('삼성전자'와 '삼성전자 파운드리' 혼동 방지)
+        match = rewritten.get(key) or (partial[0] if len(partial) == 1 else None)
         if match:
             x["comparison"] = match
     analysis["differentiation"] = a.differentiation
@@ -132,7 +134,9 @@ def competitor_node(state: dict) -> dict:
     # 분야 판정은 대상 기업 정보를 주지 않은 별도 호출로 해, "같은 분야에서 고르라"는 지시에 맞춰
     # 분류가 기우는 것을 막는다.
     # 대상 기업 자신은 경쟁사에서 뺀다 ("파네시아 (Panmnesia)" 같은 표기도 걸러지도록 포함 관계로 비교)
-    analysis["competitors"] = [x for x in analysis["competitors"] if _norm(name) not in _norm(x["name"])]
+    target = _norm(name)
+    analysis["competitors"] = [x for x in analysis["competitors"]  # '퓨리오사'처럼 짧게 적힌 대상 기업도 뺀다
+                               if not (len(_norm(x["name"])) >= 2 and (target in _norm(x["name"]) or _norm(x["name"]) in target))]
     names = [x["name"] for x in analysis["competitors"]]
     if names:
         listing = "\n".join(f"{i}. {n}" for i, n in enumerate(names))
@@ -146,12 +150,15 @@ def competitor_node(state: dict) -> dict:
         labels = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(SegmentLabels).with_retry(stop_after_attempt=LLM_ATTEMPTS).invoke(
             LABEL_PROMPT.format(segment=segment, segment_rules=SEGMENT_RULES, names=listing, results=format_results(evidence, limit=600)))
         label_of = {l.index: l for l in labels.labels}  # 이름 표기가 달라도 맞도록 번호로 매칭
+        excluded = []
         for i, x in enumerate(analysis["competitors"]):
             label = label_of.get(i)
             x["in_segment"] = bool(label and label.in_segment)
             x["tier"] = label.tier if label else "선도 기업"
             x["basis"] = label.basis if label else ""
-        analysis["excluded_other_segment"] = [x["name"] for x in analysis["competitors"] if not x["in_segment"]]
+            if label and not label.in_segment:  # 판정이 빠진 기업은 '다른 분야'로 단정하지 않고 비교에서만 뺀다
+                excluded.append(x["name"])
+        analysis["excluded_other_segment"] = excluded
         analysis["competitors"] = [x for x in analysis["competitors"] if x.pop("in_segment")]
         bases = [x.pop("basis") for x in analysis["competitors"]]
         if analysis["competitors"]:

@@ -43,9 +43,12 @@ def team_node(state: dict) -> dict:
         queries.insert(0, f"{name} {ceo} 대표 경력")
     results = search_many(queries, max_results=5, topic="general")
     results = [r for r in results if name in r["title"] + r["content"]]
+    if not results:  # 근거가 없으면 LLM을 부르지 않는다 (빈 입력에서도 경력이 채워져 나온 적이 있음)
+        return {"team_analysis": {"members": [], "team_size": "", "strengths": [], "concerns": ["공개 정보 부족"]},
+                "sources": []}
     llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(TeamAnalysis).with_retry(stop_after_attempt=LLM_ATTEMPTS)
     a = llm.invoke(PROMPT.format(name=name, ceo=ceo or "확인되지 않음", results=format_results(results)))
-    used = [results[i] for i in a.evidence_ids if 0 <= i < len(results)]
+    used = [results[i] for i in dict.fromkeys(a.evidence_ids) if 0 <= i < len(results)]
     return {
         "team_analysis": a.model_dump(exclude={"evidence_ids"}),
         "sources": [to_source(r, name, "team") for r in used],

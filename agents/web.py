@@ -1,10 +1,11 @@
 """웹 검색 공통 도우미 (Tavily). 검색 결과를 state.Source 형식 출처로 바꾸는 함수도 둔다."""
 import re
 import urllib.request
-from datetime import date
+from datetime import date, timezone
 from email.utils import parsedate_to_datetime
 from functools import lru_cache
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 from langchain_tavily import TavilySearch
 
@@ -12,6 +13,10 @@ from langchain_tavily import TavilySearch
 def search(query: str, max_results: int = 8, topic: str = "news") -> list[dict]:
     """Tavily 검색 결과 리스트. 각 항목: title, url, content, published_date"""
     response = TavilySearch(max_results=max_results, topic=topic).invoke({"query": query})
+    # 결과가 0건이면 langchain-tavily가 ToolException을 문자열로 돌려준다(handle_tool_error=True).
+    # 작은 스타트업의 좁은 검색어에서 자주 생기며, 오류가 아니라 '결과 없음'으로 처리한다
+    if isinstance(response, str):
+        return []
     # 사용량 초과(Error 432) 등은 예외가 아니라 {"error": ...}로 돌아온다. 빈 결과로 넘기면 모든 에이전트가
     # 근거 없이 계속 진행하므로 여기서 멈춘다
     if isinstance(response, dict) and response.get("error"):
@@ -91,7 +96,12 @@ def source_date(r: dict, read_page: bool = False) -> str:
     """검색 결과의 게시일. Tavily 게시일(뉴스 검색) → URL 속 날짜 → (read_page=True면) 기사 페이지 메타 태그 순.
     페이지 읽기는 시간이 들어, 출처로 기록할 때(to_source)만 한다. 모두 없으면 빈 문자열."""
     try:
-        return parsedate_to_datetime(r["published_date"]).strftime("%Y-%m-%d")
+        published = parsedate_to_datetime(r["published_date"])
+        if published.tzinfo is None:  # '-0000' 표기는 시간대 없는 UTC로 돌아온다
+            published = published.replace(tzinfo=timezone.utc)
+        day = published.astimezone(ZoneInfo("Asia/Seoul")).date()  # UTC로 자르면 한국 오전 기사가 전날로 찍힌다
+        if day <= date.today():  # 미래 날짜는 게시일로 쓰지 않는다
+            return day.isoformat()
     except (KeyError, TypeError, ValueError):
         pass  # 일반 웹 검색은 게시일을 주지 않는다
     return date_from_url(r.get("url", "")) or (date_from_page(r.get("url", "")) if read_page else "")

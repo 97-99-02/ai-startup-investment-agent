@@ -47,11 +47,12 @@ DISCOVER_PROMPT = """다음은 AI 반도체 스타트업 투자 관련 뉴스 �
 def normalize_round(text: str) -> str | None:
     """기사 표기를 ALLOWED_ROUNDS 형식으로 바꾼다. 허용 범위 밖이면 None."""
     t = text.replace(" ", "").lower()
-    if not t or "확인불가" in t or "ipo" in t or "상장" in t:
+    # 상장 여부는 listed 칸으로 따로 판정한다. 여기서 '상장'을 찾으면 '비상장 시리즈B'까지 탈락했다
+    if not t or "확인불가" in t or "ipo" in t:
         return None
     if "시드" in t or "seed" in t:
         return "Seed"
-    if "프리a" in t or "pre-a" in t or "프리시리즈a" in t:
+    if re.search(r"(프리|pre)-?(시리즈|series)?a(?![a-z])", t):  # 프리A, Pre A, Pre-Series A (Series A보다 먼저 본다)
         return "Pre-A"
     m = re.search(r"(?:시리즈|series)([a-z])", t)
     if m:
@@ -79,13 +80,15 @@ def discover_candidates() -> list[str]:
     llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(CandidateList).with_retry(stop_after_attempt=LLM_ATTEMPTS)
     found = llm.invoke(DISCOVER_PROMPT.format(results=format_results(results))).candidates
 
-    picked = []
+    picked, keys = [], []
     for c in found:
-        if c.name in picked or c.name not in corpus:  # 검색 결과에 실제로 나온 기업명만 인정
+        key = re.sub(r"[\s()]", "", c.name).lower()  # '퓨리오사AI'와 '퓨리오사 AI'를 같은 기업으로 본다
+        if not key or c.name not in corpus or any(key in k or k in key for k in keys):  # 검색 결과에 실제로 나온 기업명만
             continue
         ok, _ = is_eligible(c.listed, c.latest_round, c.exited)
         if ok and c.is_domestic and c.is_ai_chip_designer:
             picked.append(c.name)
+            keys.append(key)
         if len(picked) >= MAX_CANDIDATES:
             break
     return picked
