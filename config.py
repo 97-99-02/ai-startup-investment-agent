@@ -26,9 +26,9 @@ MAX_CANDIDATES = 5
 
 # 3.2 평가 항목과 비중 (합계 100)
 WEIGHTS = {
-    "tech": 30,         # 기술·제품 성숙도
-    "market": 25,       # 시장성
-    "team": 20,         # 창업자·팀
+    "tech": 20,         # 기술·제품 성숙도 (양산 전 기업은 최대 3점이라 30에서 하향)
+    "market": 30,       # 시장성
+    "team": 25,         # 창업자·팀
     "traction": 10,     # 실적·고객 검증
     "competition": 10,  # 경쟁 우위
     "deal": 5,          # 투자조건
@@ -36,8 +36,9 @@ WEIGHTS = {
 
 # 3.4 투자 결정 규칙
 INVEST_THRESHOLD = 70
-CORE_ITEMS = ("team", "tech")   # 2점 이하이면 보류
-CORE_MIN_SCORE = 3
+CORE_ITEMS = ("team", "tech")   # 1점 이하이면 보류 (핵심 역량 미달)
+CORE_MIN_SCORE = 2              # 이 점수 미만(1점 이하)이면 보류
+CORE_CAUTION_SCORE = 2           # 핵심 항목이 이 점수 이하이면 보류가 아니어도 보고서에 주의 코멘트를 남긴다
 
 # 4.1 사실 검증 재작성 횟수
 MAX_REPORT_RETRY = 1
