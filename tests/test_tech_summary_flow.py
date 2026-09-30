@@ -43,6 +43,7 @@ class HybridSummaryFlowTests(unittest.TestCase):
         class FakeLLM:
             def __init__(self, **_kwargs): pass
             def with_structured_output(self, _schema): return self
+            def with_retry(self, **_): return self
             def invoke(self, prompt):
                 prompts.append(prompt)
                 return card
