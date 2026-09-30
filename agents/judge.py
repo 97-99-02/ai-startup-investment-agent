@@ -181,7 +181,8 @@ def build_cautions(items: dict) -> list[dict]:
         if info["score"] > CORE_CAUTION_SCORE:
             continue
         reason = "정보 부족으로 최대 2점 제한" if info["insufficient"] else "낮은 평가"
-        basis = info["evidence"].removeprefix("정보 부족:").strip()[:100]
+        # 근거는 스키마상 한두 문장이라 자르지 않는다 (글자 수로 자르면 '…단계로 볼'처럼 문장 중간에서 끊겼다)
+        basis = info["evidence"].removeprefix("정보 부족:").strip()
         cautions.append({
             "item": key,
             "label": ITEM_LABELS[key],

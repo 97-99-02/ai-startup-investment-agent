@@ -37,6 +37,12 @@ SEGMENT_TERMS = {
     "기타": ("ai반도체",),
 }
 
+# 프롬프트에 넣을 분야 이름. '기타'를 그대로 넣으면 차트 범례의 '기타' 항목을 대상 분야로 착각한다
+SEGMENT_LABELS = {"기타": "AI 반도체 전체"}
+
+# 값에 단위가 있어야 수치로 인정한다. 단위 없는 숫자는 대부분 차트 눈금·범례를 OCR한 값이라 대상이 불분명하다
+UNIT_PATTERNS = {"시장규모": re.compile(r"달러|원|\$|usd", re.I), "성장률": re.compile(r"%")}
+
 
 class MarketFigure(BaseModel):
     kind: Literal["시장규모", "성장률"] = Field(description="시장규모: 금액(달러·원). 성장률: 연평균 성장률(CAGR, %)")
@@ -56,6 +62,8 @@ class MarketAnalysis(BaseModel):
 
 PROMPT = """너는 AI 반도체 투자 심사역이다. '{name}'이 속한 세부 분야({segment}) 시장을 분석하라.
 아래 문서 조각에 있는 수치만 쓰고, 숫자는 원문 표기 그대로 옮겨라. 계산하거나 단위를 환산하지 마라.
+문서 조각에 나온 시장 규모·성장률 수치는 빠짐없이 넣는다. value에는 반드시 단위(억 달러, % 등)를 붙이고,
+단위나 대상 시장이 분명하지 않은 숫자(차트 눈금·범례 값 등)는 넣지 않는다.
 figures 항목 하나에는 수치 하나만 넣는다. "2024년 A에서 2030년 B로 연평균 C% 성장"이라는 문장이면
 시장규모 A(2024), 시장규모 B(2030), 성장률 C(2024~2030) 세 항목으로 나눈다.
 scope는 원문에 적힌 시장 이름을 그대로 쓰고, 대상 분야({segment})에 맞춰 바꾸지 마라.
@@ -100,22 +108,34 @@ def number_in_source(value: str, text: str) -> bool:
     return bool(nums) and all(n in body for n in nums)
 
 
+def has_unit(kind: str, value: str) -> bool:
+    """시장규모는 통화 단위, 성장률은 %가 값에 있는가."""
+    return bool(UNIT_PATTERNS[kind].search(value))
+
+
 def is_segment_specific(scope: str, text: str, segment: str) -> bool:
-    """scope와 근거 조각 원문에 같은 세부 분야 용어가 모두 있으면 대상 분야 수치로 본다."""
+    """scope와 근거 조각 원문에 같은 세부 분야 용어가 모두 있으면 대상 분야 수치로 본다.
+    기타(AI 반도체 전체)는 scope에 다른 분야 용어가 있으면 제외한다 ('데이터센터용 AI반도체'도 'ai반도체'를 포함하므로)
+    """
     scope, body = _compact(scope).lower(), _compact(text).lower()
+    if segment not in SEGMENT_TERMS or segment == "기타":
+        others = (t for seg, terms in SEGMENT_TERMS.items() if seg != "기타" for t in terms)
+        if any(t in scope for t in others):
+            return False
     return any(t in scope and t in body for t in SEGMENT_TERMS.get(segment, SEGMENT_TERMS["기타"]))
 
 
 def extract(name: str, segment: str, docs: list) -> tuple[MarketAnalysis, list[dict]]:
-    """LLM으로 추출한 뒤, 근거 번호가 맞고 수치가 원문에 있는 것만 남기고 세부 분야 여부를 판정한다."""
+    """LLM으로 추출한 뒤, 근거 번호가 맞고 단위가 있으며 수치가 원문에 있는 것만 남기고 세부 분야 여부를 판정한다."""
     llm = ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS).with_structured_output(MarketAnalysis).with_retry(stop_after_attempt=LLM_ATTEMPTS)
-    a = llm.invoke(PROMPT.format(name=name, segment=segment, chunks=format_chunks(docs)))
+    label = SEGMENT_LABELS.get(segment, segment)
+    a = llm.invoke(PROMPT.format(name=name, segment=label, chunks=format_chunks(docs)))
     figures = []
     for f in a.figures:
         if not (0 <= f.evidence_id < len(docs)):
             continue
         d = docs[f.evidence_id]
-        if not number_in_source(f.value, d.page_content):
+        if not has_unit(f.kind, f.value) or not number_in_source(f.value, d.page_content):
             continue
         figures.append({
             **f.model_dump(),
