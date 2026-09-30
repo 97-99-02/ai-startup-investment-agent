@@ -38,6 +38,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.pdfbase.ttfonts import TTFError, TTFont
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus.doctemplate import LayoutError
 
 from config import (ALLOWED_ROUNDS, CORE_CAUTION_SCORE, CORE_ITEMS, CORE_MIN_SCORE, INVEST_THRESHOLD,
                     MAX_CANDIDATES, MAX_REPORT_RETRY, MODEL_ANALYZE)
@@ -510,9 +511,14 @@ def _summary_structure_violations(summary: str) -> list[str]:
     if missing:
         return [f"SUMMARY 틀에 다음 항목이 없습니다: {', '.join(missing)}"]
 
-    _, rest = summary.split("**핵심 근거**", 1)
-    basis, rest = rest.split("**핵심 리스크**", 1)
-    risk, confirm = rest.split("**확인 필요**", 1)
+    # 소제목 순서가 틀리면 split으로 나눌 수 없어 ValueError로 그래프가 멈췄다. 위치로 순서를 먼저 확인한다
+    heads = ["**핵심 근거**", "**핵심 리스크**", "**확인 필요**"]
+    pos = [summary.index(h) for h in heads]
+    if pos != sorted(pos):
+        return ["SUMMARY 소제목은 결론 → 핵심 근거 → 핵심 리스크 → 확인 필요 순서여야 합니다."]
+    basis = summary[pos[0] + len(heads[0]):pos[1]]
+    risk = summary[pos[1] + len(heads[1]):pos[2]]
+    confirm = summary[pos[2] + len(heads[2]):]
     problems = []
     for name, part in (("핵심 근거", basis), ("핵심 리스크", risk)):
         if _count_bullets(part) != SUMMARY_BULLETS:
@@ -973,6 +979,11 @@ def _two_panels(block: list[str], styles: dict, width: float) -> Table:
     return outer
 
 
+# 경쟁 구도 그림·2칸 패널은 한 행짜리 표라 쪽을 넘겨 나뉘지 않는다. 카드가 많고 설명이 길어 한 쪽보다 높아지면
+# LayoutError로 PDF 저장이 실패하므로, 그때는 이 값을 켜고 일반 표(쪽 나눔 가능)로 다시 그린다
+_PLAIN_FIGURES = False
+
+
 def content_flowables(lines: list[str], styles: dict, width: float, font: str) -> list:
     """제목을 뺀 내용 줄들을 PDF 조각(표·목록·문단)으로 바꾼다."""
     flow, i = [], 0
@@ -984,7 +995,9 @@ def content_flowables(lines: list[str], styles: dict, width: float, font: str) -
                 block.append(lines[i])
                 i += 1
             first = _md_rows(block)[0][0] if _md_rows(block) else ""
-            if first == LANDSCAPE_HEADER:      # 경쟁 구도 표 → 구도 그림
+            if _PLAIN_FIGURES:                 # 저장 재시도: 그림 대신 일반 표
+                flow += [_table(block, styles, width, font), Spacer(1, 4)]
+            elif first == LANDSCAPE_HEADER:    # 경쟁 구도 표 → 구도 그림
                 flow += [Spacer(1, 2), _landscape(block, styles, width), Spacer(1, 6)]
             elif first == STRENGTH_HEADER:     # 차별점·경쟁 리스크 표 → 2칸 패널
                 flow += [_two_panels(block, styles, width), Spacer(1, 6)]
@@ -1372,12 +1385,14 @@ def export_report_pdf(report: str, output_dir: Path = OUTPUT_DIR, filename: str 
 
     # 순서: 제목 밴드 → SUMMARY → 시각 자료(대시보드) → 1장~ → REFERENCE
     has_result = any(state.get(k) for k in ("scores", "rejected", "candidates"))   # 평가 결과가 있으면 대시보드
-    header, visuals = (build_dashboard(state, report, report_date, font, bold, width)
-                       if has_result else ([], []))
-    until_summary, after_summary = _split_at_summary(parse_blocks(report))
-    has_band = bool(header)
-    story = (header + render_blocks(until_summary, font, bold, width, has_band)
-             + visuals + render_blocks(after_summary, font, bold, width, has_band))
+
+    def make_story() -> list:  # 조판에 한 번 쓴 조각은 다시 쓸 수 없어, 재시도 때 새로 만든다
+        header, visuals = (build_dashboard(state, report, report_date, font, bold, width)
+                           if has_result else ([], []))
+        until_summary, after_summary = _split_at_summary(parse_blocks(report))
+        has_band = bool(header)
+        return (header + render_blocks(until_summary, font, bold, width, has_band)
+                + visuals + render_blocks(after_summary, font, bold, width, has_band))
 
     ratio = measure_summary_ratio(report)  # SUMMARY가 반 페이지를 넘는지 실제 높이로 확인
     if ratio > SUMMARY_MAX_PAGE_RATIO:
@@ -1388,12 +1403,24 @@ def export_report_pdf(report: str, output_dir: Path = OUTPUT_DIR, filename: str 
     # 추천 기업이 없으면 마지막으로 평가한 기업 이름을 바닥글에 넣지 않는다
     company_name = (state.get("company") or {}).get(COMPANY_NAME_KEY, "") if _is_recommend_mode(state) else ""
     label = " · ".join(v for v in ("AI 스타트업 투자 평가", company_name) if v)
-    counter = {"n": 0}
-    first, later = _page_decorations(font, label, counter)
+    def build() -> dict:
+        counter = {"n": 0}
+        first, later = _page_decorations(font, label, counter)
+        doc = SimpleDocTemplate(str(path), pagesize=A4, leftMargin=PAGE_MARGIN, rightMargin=PAGE_MARGIN,
+                                topMargin=PAGE_MARGIN, bottomMargin=PAGE_MARGIN + BOTTOM_EXTRA, title=path.stem)
+        doc.build(make_story(), onFirstPage=first, onLaterPages=later)
+        return counter
 
-    doc = SimpleDocTemplate(str(path), pagesize=A4, leftMargin=PAGE_MARGIN, rightMargin=PAGE_MARGIN,
-                            topMargin=PAGE_MARGIN, bottomMargin=PAGE_MARGIN + BOTTOM_EXTRA, title=path.stem)
-    doc.build(story, onFirstPage=first, onLaterPages=later)
+    global _PLAIN_FIGURES
+    try:
+        counter = build()
+    except LayoutError as e:
+        logger.warning("[PDF] 경쟁 구도 그림이 한 쪽을 넘어 일반 표로 다시 저장합니다: %s", str(e)[:120])
+        _PLAIN_FIGURES = True
+        try:
+            counter = build()
+        finally:
+            _PLAIN_FIGURES = False
 
     pages = counter["n"]
     if pages > MAX_PAGES:
