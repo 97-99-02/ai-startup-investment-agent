@@ -1,0 +1,708 @@
+{
+  "label": "+rerank",
+  "time": "2026-09-30T12:47:03",
+  "segments": [
+    "데이터센터",
+    "엣지",
+    "차량용",
+    "인프라",
+    "기타"
+  ],
+  "runs": 2,
+  "node": {
+    "summary": {
+      "sufficient_rate": 1.0,
+      "recall": 0.95,
+      "precision": 0.92,
+      "misjudged": 0.0,
+      "llm_calls": 1.4,
+      "sec": 12.47
+    },
+    "cases": [
+      {
+        "sufficient": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "misjudged": 0,
+        "n_specific": 3,
+        "n_figures": 3,
+        "n_drivers": 2,
+        "n_risks": 2,
+        "llm_calls": 1,
+        "searched": [
+          "market"
+        ],
+        "run": 0,
+        "segment": "데이터센터",
+        "sec": 20.9,
+        "n_sources": 3,
+        "figures": [
+          {
+            "kind": "시장규모",
+            "value": "1,240억 달러",
+            "year": "2024",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "8,600억 달러",
+            "year": "2030",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "성장률",
+            "value": "38%",
+            "year": "2024~2030",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          }
+        ]
+      },
+      {
+        "sufficient": true,
+        "recall": 0.75,
+        "precision": 0.6,
+        "misjudged": 0,
+        "n_specific": 5,
+        "n_figures": 6,
+        "n_drivers": 2,
+        "n_risks": 1,
+        "llm_calls": 1,
+        "searched": [
+          "market"
+        ],
+        "run": 0,
+        "segment": "엣지",
+        "sec": 8.4,
+        "n_sources": 4,
+        "figures": [
+          {
+            "kind": "시장규모",
+            "value": "592억 달러",
+            "year": "2024",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "1,430억 달러",
+            "year": "2030",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "성장률",
+            "value": "16%",
+            "year": "2024~2030",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "305억 달러",
+            "year": "2023",
+            "scope": "엣지디바이스 분야",
+            "segment_specific": true,
+            "source": "AI 반도체 기술 및 산업 동향 p.4"
+          },
+          {
+            "kind": "시장규모",
+            "value": "524억 달러",
+            "year": "2028",
+            "scope": "엣지디바이스 분야",
+            "segment_specific": true,
+            "source": "AI 반도체 기술 및 산업 동향 p.4"
+          },
+          {
+            "kind": "성장률",
+            "value": "24%",
+            "year": "2023~2028",
+            "scope": "글로벌 AI 반도체 시장",
+            "segment_specific": false,
+            "source": "AI 반도체 기술 및 산업 동향 p.1"
+          }
+        ]
+      },
+      {
+        "sufficient": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "misjudged": 0,
+        "n_specific": 3,
+        "n_figures": 3,
+        "n_drivers": 1,
+        "n_risks": 1,
+        "llm_calls": 2,
+        "searched": [
+          "market",
+          "tech"
+        ],
+        "run": 0,
+        "segment": "차량용",
+        "sec": 13.9,
+        "n_sources": 2,
+        "figures": [
+          {
+            "kind": "시장규모",
+            "value": "45.8억 달러",
+            "year": "2023",
+            "scope": "자율주행차용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "AI 정의 차량(ADV) 기반의 자율주행차용 AI반도체: 기술·시장 전망 및 전략적 시사점 p.10"
+          },
+          {
+            "kind": "시장규모",
+            "value": "96.7억 달러",
+            "year": "2028",
+            "scope": "자율주행차용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "AI 정의 차량(ADV) 기반의 자율주행차용 AI반도체: 기술·시장 전망 및 전략적 시사점 p.10"
+          },
+          {
+            "kind": "성장률",
+            "value": "16%",
+            "year": "2023~2028",
+            "scope": "자율주행차용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "AI 정의 차량(ADV) 기반의 자율주행차용 AI반도체: 기술·시장 전망 및 전략적 시사점 p.10"
+          }
+        ]
+      },
+      {
+        "sufficient": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "misjudged": 0,
+        "n_specific": 6,
+        "n_figures": 6,
+        "n_drivers": 3,
+        "n_risks": 3,
+        "llm_calls": 2,
+        "searched": [
+          "market",
+          "tech"
+        ],
+        "run": 0,
+        "segment": "인프라",
+        "sec": 15.9,
+        "n_sources": 3,
+        "figures": [
+          {
+            "kind": "시장규모",
+            "value": "170억 달러",
+            "year": "2024",
+            "scope": "HBM 시장",
+            "segment_specific": true,
+            "source": "AI 메모리 반도체 분야 주요 기술 및 시장 동향 p.3"
+          },
+          {
+            "kind": "시장규모",
+            "value": "980억 달러",
+            "year": "2030",
+            "scope": "HBM 시장",
+            "segment_specific": true,
+            "source": "AI 메모리 반도체 분야 주요 기술 및 시장 동향 p.3"
+          },
+          {
+            "kind": "성장률",
+            "value": "33%",
+            "year": "2024~2030",
+            "scope": "HBM 시장",
+            "segment_specific": true,
+            "source": "AI 메모리 반도체 분야 주요 기술 및 시장 동향 p.3"
+          },
+          {
+            "kind": "시장규모",
+            "value": "14백만달러",
+            "year": "2023",
+            "scope": "CXL 메모리 시장",
+            "segment_specific": true,
+            "source": "AI 반도체 기술 및 산업 동향 p.16"
+          },
+          {
+            "kind": "시장규모",
+            "value": "3,400백만달러",
+            "year": "2026",
+            "scope": "CXL 메모리 시장",
+            "segment_specific": true,
+            "source": "AI 반도체 기술 및 산업 동향 p.16"
+          },
+          {
+            "kind": "시장규모",
+            "value": "120억 달러",
+            "year": "2030",
+            "scope": "HBF 시장",
+            "segment_specific": true,
+            "source": "AI 메모리 반도체 분야 주요 기술 및 시장 동향 p.8"
+          }
+        ]
+      },
+      {
+        "sufficient": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "misjudged": 0,
+        "n_specific": 3,
+        "n_figures": 9,
+        "n_drivers": 3,
+        "n_risks": 3,
+        "llm_calls": 1,
+        "searched": [
+          "market"
+        ],
+        "run": 0,
+        "segment": "기타",
+        "sec": 9.6,
+        "n_sources": 2,
+        "figures": [
+          {
+            "kind": "시장규모",
+            "value": "1,830억 달러",
+            "year": "2024",
+            "scope": "AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "1조 달러",
+            "year": "2030",
+            "scope": "AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "성장률",
+            "value": "33%",
+            "year": "2024~2030",
+            "scope": "AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "1,240억 달러",
+            "year": "2024",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "8,600억 달러",
+            "year": "2030",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "성장률",
+            "value": "38%",
+            "year": "2024~2030",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "592억 달러",
+            "year": "2024",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "1,430억 달러",
+            "year": "2030",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "성장률",
+            "value": "16%",
+            "year": "2024~2030",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          }
+        ]
+      },
+      {
+        "sufficient": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "misjudged": 0,
+        "n_specific": 3,
+        "n_figures": 3,
+        "n_drivers": 2,
+        "n_risks": 3,
+        "llm_calls": 1,
+        "searched": [
+          "market"
+        ],
+        "run": 1,
+        "segment": "데이터센터",
+        "sec": 7.7,
+        "n_sources": 3,
+        "figures": [
+          {
+            "kind": "시장규모",
+            "value": "1,240억 달러",
+            "year": "2024",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "8,600억 달러",
+            "year": "2030",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "성장률",
+            "value": "38%",
+            "year": "2024~2030",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          }
+        ]
+      },
+      {
+        "sufficient": true,
+        "recall": 0.75,
+        "precision": 0.6,
+        "misjudged": 0,
+        "n_specific": 5,
+        "n_figures": 6,
+        "n_drivers": 2,
+        "n_risks": 1,
+        "llm_calls": 1,
+        "searched": [
+          "market"
+        ],
+        "run": 1,
+        "segment": "엣지",
+        "sec": 8.4,
+        "n_sources": 5,
+        "figures": [
+          {
+            "kind": "시장규모",
+            "value": "592억 달러",
+            "year": "2024",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "1,430억 달러",
+            "year": "2030",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "성장률",
+            "value": "16%",
+            "year": "2024~2030",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "305억 달러",
+            "year": "2023",
+            "scope": "엣지디바이스 분야",
+            "segment_specific": true,
+            "source": "AI 반도체 기술 및 산업 동향 p.4"
+          },
+          {
+            "kind": "시장규모",
+            "value": "524억 달러",
+            "year": "2028",
+            "scope": "엣지디바이스 분야",
+            "segment_specific": true,
+            "source": "AI 반도체 기술 및 산업 동향 p.4"
+          },
+          {
+            "kind": "성장률",
+            "value": "24%",
+            "year": "2023~2028",
+            "scope": "글로벌 AI 반도체 시장",
+            "segment_specific": false,
+            "source": "AI 반도체 기술 및 산업 동향 p.1"
+          }
+        ]
+      },
+      {
+        "sufficient": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "misjudged": 0,
+        "n_specific": 3,
+        "n_figures": 9,
+        "n_drivers": 1,
+        "n_risks": 0,
+        "llm_calls": 2,
+        "searched": [
+          "market",
+          "tech"
+        ],
+        "run": 1,
+        "segment": "차량용",
+        "sec": 15.6,
+        "n_sources": 2,
+        "figures": [
+          {
+            "kind": "시장규모",
+            "value": "45.8억 달러",
+            "year": "2023",
+            "scope": "자율주행차용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "AI 정의 차량(ADV) 기반의 자율주행차용 AI반도체: 기술·시장 전망 및 전략적 시사점 p.10"
+          },
+          {
+            "kind": "시장규모",
+            "value": "96.7억 달러",
+            "year": "2028",
+            "scope": "자율주행차용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "AI 정의 차량(ADV) 기반의 자율주행차용 AI반도체: 기술·시장 전망 및 전략적 시사점 p.10"
+          },
+          {
+            "kind": "성장률",
+            "value": "16%",
+            "year": "2023~2028",
+            "scope": "자율주행차용 AI반도체 시장",
+            "segment_specific": true,
+            "source": "AI 정의 차량(ADV) 기반의 자율주행차용 AI반도체: 기술·시장 전망 및 전략적 시사점 p.10"
+          },
+          {
+            "kind": "시장규모",
+            "value": "1,240억 달러",
+            "year": "2024",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.7"
+          },
+          {
+            "kind": "시장규모",
+            "value": "8,600억 달러",
+            "year": "2030",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.7"
+          },
+          {
+            "kind": "성장률",
+            "value": "38%",
+            "year": "2024~2030",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.7"
+          },
+          {
+            "kind": "시장규모",
+            "value": "592억 달러",
+            "year": "2024",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.7"
+          },
+          {
+            "kind": "시장규모",
+            "value": "1,430억 달러",
+            "year": "2030",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.7"
+          },
+          {
+            "kind": "성장률",
+            "value": "16%",
+            "year": "2024~2030",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.7"
+          }
+        ]
+      },
+      {
+        "sufficient": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "misjudged": 0,
+        "n_specific": 6,
+        "n_figures": 6,
+        "n_drivers": 3,
+        "n_risks": 3,
+        "llm_calls": 2,
+        "searched": [
+          "market",
+          "tech"
+        ],
+        "run": 1,
+        "segment": "인프라",
+        "sec": 15.1,
+        "n_sources": 3,
+        "figures": [
+          {
+            "kind": "시장규모",
+            "value": "170억 달러",
+            "year": "2024",
+            "scope": "HBM 시장",
+            "segment_specific": true,
+            "source": "AI 메모리 반도체 분야 주요 기술 및 시장 동향 p.3"
+          },
+          {
+            "kind": "시장규모",
+            "value": "980억 달러",
+            "year": "2030",
+            "scope": "HBM 시장",
+            "segment_specific": true,
+            "source": "AI 메모리 반도체 분야 주요 기술 및 시장 동향 p.3"
+          },
+          {
+            "kind": "성장률",
+            "value": "33%",
+            "year": "2024~2030",
+            "scope": "HBM 시장",
+            "segment_specific": true,
+            "source": "AI 메모리 반도체 분야 주요 기술 및 시장 동향 p.3"
+          },
+          {
+            "kind": "시장규모",
+            "value": "14백만달러",
+            "year": "2023",
+            "scope": "CXL 메모리 시장",
+            "segment_specific": true,
+            "source": "AI 반도체 기술 및 산업 동향 p.16"
+          },
+          {
+            "kind": "시장규모",
+            "value": "3,400백만달러",
+            "year": "2026",
+            "scope": "CXL 메모리 시장",
+            "segment_specific": true,
+            "source": "AI 반도체 기술 및 산업 동향 p.16"
+          },
+          {
+            "kind": "시장규모",
+            "value": "120억 달러",
+            "year": "2030",
+            "scope": "HBF 시장",
+            "segment_specific": true,
+            "source": "AI 메모리 반도체 분야 주요 기술 및 시장 동향 p.8"
+          }
+        ]
+      },
+      {
+        "sufficient": true,
+        "recall": 1.0,
+        "precision": 1.0,
+        "misjudged": 0,
+        "n_specific": 3,
+        "n_figures": 9,
+        "n_drivers": 2,
+        "n_risks": 2,
+        "llm_calls": 1,
+        "searched": [
+          "market"
+        ],
+        "run": 1,
+        "segment": "기타",
+        "sec": 9.2,
+        "n_sources": 2,
+        "figures": [
+          {
+            "kind": "시장규모",
+            "value": "1,830억 달러",
+            "year": "2024",
+            "scope": "AI반도체 시장 전체",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "1조 달러",
+            "year": "2030",
+            "scope": "AI반도체 시장 전체",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "성장률",
+            "value": "33%",
+            "year": "2024~2030",
+            "scope": "AI반도체 시장 전체",
+            "segment_specific": true,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "1,240억 달러",
+            "year": "2024",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "8,600억 달러",
+            "year": "2030",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "성장률",
+            "value": "38%",
+            "year": "2024~2030",
+            "scope": "데이터센터용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "592억 달러",
+            "year": "2024",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "시장규모",
+            "value": "1,430억 달러",
+            "year": "2030",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          },
+          {
+            "kind": "성장률",
+            "value": "16%",
+            "year": "2024~2030",
+            "scope": "온디바이스용 AI반도체 시장",
+            "segment_specific": false,
+            "source": "데이터센터용 AI반도체 시장 현황 및 전망 p.2"
+          }
+        ]
+      }
+    ]
+  }
+}
