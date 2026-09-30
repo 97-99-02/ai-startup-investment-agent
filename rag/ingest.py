@@ -34,7 +34,8 @@ def load_documents() -> list[Document]:
                         continue
                     docs.append(Document(
                         page_content=chunk,
-                        metadata={"doc_type": doc_type, "source": pdf.name, "page": page_no,
+                        metadata={"doc_type": doc_type, "source": pdf.name,
+                                  "source_path": str(pdf.relative_to(ROOT)), "page": page_no,
                                   "title": info["title"], "publisher": info["publisher"],
                                   "year": info["year"], "url": info["url"]},
                     ))
