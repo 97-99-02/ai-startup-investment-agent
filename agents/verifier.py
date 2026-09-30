@@ -741,7 +741,10 @@ def build_verification_note(result: dict, scores: dict) -> str:
         lines.append(text)
 
     rag = result.get("rag") or {}
-    if rag.get("checked"):
+    errors = result.get("errors") or {}
+    if errors.get("rag"):
+        lines.append("- 원문 대조(RAG): 실행 중 오류로 검증하지 못했습니다. 기술·시장 수치는 분석 자료와만 대조했습니다.")
+    elif rag.get("checked"):
         found = rag["checked"] - rag.get("not_found", 0)
         docs = ", ".join(rag.get("sources", [])[:4]) or "원문"
         head = (f"- 원문 대조(RAG): 기술·시장 문장 {rag['checked']}건 중 관련 원문을 찾은 {found}건을 "
@@ -774,6 +777,8 @@ def build_verification_note(result: dict, scores: dict) -> str:
                          f"뒷받침을 확인하지 못했습니다.")
             for m in claim_problems[:MAX_NOTED_CLAIMS]:
                 lines.append(f"  - \"{m['value']}\" — {m['context']}")
+    elif errors.get("judge"):
+        lines.append("- 주장 검증(LLM 검수): 실행 중 오류로 검수하지 못했습니다.")
     elif result.get("judge_ran"):  # 검수는 돌렸지만 대상이 없었다 (예: 출처가 없는 '추천 기업 없음' 보고서)
         lines.append("- 주장 검증: 출처 번호가 달린 서술 문장이 없어 LLM 검수 대상이 없었습니다. "
                      "숫자가 없는 서술은 검증하지 않았습니다.")
@@ -828,23 +833,34 @@ def verifier_node(state: dict, judge_llm=None, retriever=None) -> dict:
     # 2단계: RAG 원문 대조 (문서에서 온 기술·시장 내용)
     rag_info = {"checked": 0, "sources": [], "not_found": 0, "rewritten": 0, "grounded": 0, "cited": 0}
     company_name = (state.get("company") or {}).get("name")
-    search = _resolve_retriever(retriever, company_name)
-    if search is not None:
-        rag_problems, rag_info = rag_check(report, state, search, judge)
-        mismatches += rag_problems
+    # 2·3단계는 보조 검증이다. LLM·검색 오류(요청 한도, 시간 초과, 예상 밖 응답)로 마지막 노드가 죽으면
+    # 보고서를 저장하지 못하므로, 실패하면 기록만 하고 1단계 결과로 진행한다
+    errors = {}
+    try:
+        search = _resolve_retriever(retriever, company_name)
+        if search is not None:
+            rag_problems, rag_info = rag_check(report, state, search, judge)
+            mismatches += rag_problems
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[사실 검증] 원문 대조 실패: %s", e)
+        errors["rag"] = str(e)[:200]
 
     # 3단계: LLM 검수 (나머지 서술 주장. 원문 대조가 맡은 장은 빼서 중복 판정하지 않는다)
     judged = 0
     if judge is not None:
-        claim_problems, judged = judge_claims(report, state, judge, skip_rag_sections=bool(rag_info["checked"]))
-        mismatches += claim_problems
+        try:
+            claim_problems, judged = judge_claims(report, state, judge, skip_rag_sections=bool(rag_info["checked"]))
+            mismatches += claim_problems
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[사실 검증] LLM 검수 실패: %s", e)
+            errors["judge"] = str(e)[:200]
 
     passed = not mismatches
     logger.info("[사실 검증] 수치 %d개 검사, 원문 대조 %d건, 주장 %d건 판정, 불일치 %d개 → %s",
                 checked, rag_info["checked"], judged, len(mismatches), "통과" if passed else "불일치")
 
     result = {"passed": passed, "mismatches": mismatches, "checked": checked, "judged": judged,
-              "judge_ran": judge is not None, "rag": rag_info}
+              "judge_ran": judge is not None and "judge" not in errors, "rag": rag_info, "errors": errors}
     update = {"verify_result": result}
 
     exhausted = not passed and state.get("retry_count", 0) >= MAX_RETRY
