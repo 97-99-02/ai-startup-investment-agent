@@ -73,8 +73,9 @@ SYSTEM_PROMPT = """당신은 AI 반도체 스타트업 투자 보고서를 쓰�
    그 아래에 항목별 근거를 문장으로 해설합니다. (표는 코드가 자동으로 채웁니다.)
 9. 수치나 사실을 말하는 문장 끝에는 [분석 자료]의 sources_for_citation에 있는 번호를 [1]처럼 붙이세요.
    목록에 없는 번호는 절대 쓰지 말고, 근거 출처가 없으면 번호를 붙이지 않습니다.
-10. '경쟁 구도' 장에는 경쟁사 표를 직접 쓰지 말고, 표가 들어갈 자리에 {{COMPETITOR_TABLE}} 한 줄만 쓰세요.
-    그 아래에 차별점과 경쟁 리스크를 문장으로 해설합니다. (표는 코드가 자동으로 채웁니다.)
+10. '경쟁 구도' 장에는 경쟁사 목록·차별점·경쟁 리스크를 직접 나열하지 말고, 그 자리에 {{COMPETITOR_TABLE}} 한 줄만 쓰세요.
+    (구도 그림과 차별점·리스크 목록은 코드가 자동으로 채웁니다.) 그 아래에는 이 경쟁 구도가 투자 판단에
+    주는 의미를 2~3문장으로 해설합니다. 목록 내용을 그대로 반복하지 않습니다.
 11. 장과 장 사이에 '---' 같은 구분선을 쓰지 않습니다.
 12. 자료에 붙은 '(2026-04-24 기준)' 같은 날짜 표기는 지우지 말고 그대로 옮깁니다.
     '올해', '내년', '연내' 같은 상대 시점 표현은 쓰지 않습니다.
@@ -92,7 +93,7 @@ TOC_RECOMMEND = """## SUMMARY (위 5번 틀 그대로)
 ## 1. 사업 아이디어 (핵심 컨셉)
 ## 2. 시장 규모
 ## 3. 팀의 구성
-## 4. 경쟁 구도 (경쟁사 표 자리 {{COMPETITOR_TABLE}} + 차별점·경쟁 리스크 해설)
+## 4. 경쟁 구도 (자리 {{COMPETITOR_TABLE}} + 경쟁 구도가 투자 판단에 주는 의미 2~3문장)
 ## 5. 투자 판단 결과 (점수표 자리 {{SCORE_TABLE}} + 항목별 근거 해설)
 ## 6. 사업 리스크 (시장·기술·규제·경쟁)
 ## 7. 한계점 ('정보 부족' 항목, '확인 필요' 수치, 보류·제외 기업과 사유)"""
@@ -190,8 +191,11 @@ SECTION5_PATTERN = re.compile(r"^##\s*5\.[^\n]*\n", re.MULTILINE)
 NEXT_H2_PATTERN = re.compile(r"^##\s", re.MULTILINE)
 HR_PATTERN = re.compile(r"^[ \t]*(?:[-*_][ \t]*){3,}$\n?", re.MULTILINE)  # AI가 넣는 '---' 구분선
 CANDIDATE_HEADING = "### 후보 평가 과정"
-LEADING_TIER = "선도 기업"                            # 경쟁사 표에서 먼저 보여 줄 구분
+LEADING_TIER = "선도 기업"                            # 경쟁 구도에서 왼쪽(진입 위협)에 놓을 구분
+PEER_TIER = "동급 기업"                               # 오른쪽(직접 경쟁)에 놓을 구분
 TARGET_TIER = "평가 대상"
+LANDSCAPE_HEADER = "구분"                             # 경쟁 구도 표의 첫 칸 제목 (PDF는 이 표를 구도 그림으로 그린다)
+STRENGTH_HEADER, RISK_HEADER = "차별점(강점)", "경쟁 리스크"   # 2칸 패널로 그리는 표의 제목
 REFERENCE_SECTION_PATTERN = re.compile(r"\n?##\s*REFERENCE.*", re.DOTALL | re.IGNORECASE)
 H2_PATTERN = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 TABLE_UNAVAILABLE = "(채점 항목이 누락되어 점수표를 만들 수 없습니다.)"
@@ -287,18 +291,29 @@ def _cell(text) -> str:
 
 
 def build_competitor_table(state: dict) -> str:
-    """4장 경쟁사 비교표: 평가 대상 → 선도 기업 → 동급 기업 순. 값은 competitor_analysis 그대로."""
+    """4장 경쟁 구도: ① 구도 표(평가 대상·선도 기업·동급 기업) ② 차별점·경쟁 리스크 표. 값은 competitor_analysis 그대로.
+
+    마크다운에서는 표로 읽히고, PDF에서는 첫 칸 제목('구분'/'차별점')을 보고 구도 그림과 2칸 패널로 그린다.
+    """
     analysis = state.get("competitor_analysis") or {}
     company = state.get("company") or {}
     competitors = sorted(analysis.get("competitors") or [], key=lambda c: c.get("tier") != LEADING_TIER)
     if not competitors:
         return "(같은 세부 분야에서 비교할 경쟁사를 찾지 못했습니다.)"
     country = "한국" if company.get("is_domestic") else ""
-    lines = ["| 기업 | 구분 | 국가 | 제품 | 비교 |", "|---|---|---|---|---|",
-             f"| **{_cell(company.get(COMPANY_NAME_KEY))}** | {TARGET_TIER} | {_cell(country)} "
+    lines = [f"| {LANDSCAPE_HEADER} | 기업 | 국가 | 제품 | 비교 |", "|---|---|---|---|---|",
+             f"| {TARGET_TIER} | {_cell(company.get(COMPANY_NAME_KEY))} | {_cell(country)} "
              f"| {_cell(company.get('product'))} | – |"]
-    lines += [f"| {_cell(c.get('name'))} | {_cell(c.get('tier'))} | {_cell(c.get('country'))} "
+    lines += [f"| {_cell(c.get('tier'))} | {_cell(c.get('name'))} | {_cell(c.get('country'))} "
               f"| {_cell(c.get('product'))} | {_cell(c.get('comparison'))} |" for c in competitors]
+
+    strengths, risks = analysis.get("differentiation") or [], analysis.get("competitive_risks") or []
+    if strengths or risks:
+        lines += ["", f"| {STRENGTH_HEADER} | {RISK_HEADER} |", "|---|---|"]
+        for i in range(max(len(strengths), len(risks))):
+            left = _cell(strengths[i]) if i < len(strengths) else ""
+            right = _cell(risks[i]) if i < len(risks) else ""
+            lines.append(f"| {left} | {right} |")
     excluded = analysis.get("excluded_other_segment") or []
     if excluded:
         lines += ["", f"다른 세부 분야라 비교에서 제외: {', '.join(excluded)}"]
@@ -724,11 +739,10 @@ BODY_SIZE, SMALL_SIZE = 9.5, 8
 DASH_HEIGHT = 168                              # 대시보드 카드·차트 높이(pt)
 CARD_RATIO = 0.42                              # 대시보드에서 왼쪽 카드가 차지하는 폭 비율
 SCORE_BAR_W, SCORE_BAR_H = 70, 9
-MAX_REJECTED_ROWS = 8                          # '추천 없음' 보고서의 후보 막대 최대 개수
+MAX_CANDIDATE_ROWS = 8                         # 대시보드 후보별 점수 막대 최대 개수
 SCORE_TABLE_FRACS = (0.36, 0.26, 0.14, 0.24)   # 점수표(4칸) 열 폭 비율
 TABLE_FRACS = {                                # 표 첫 칸 제목 → 열 폭 비율 (없으면 균등)
     "항목": SCORE_TABLE_FRACS,
-    "기업": (0.15, 0.11, 0.07, 0.22, 0.45),     # 경쟁사 비교표: '비교' 칸을 넓게
     "순서": (0.07, 0.17, 0.12, 0.12, 0.52),     # 후보 평가 과정 표: '사유' 칸을 넓게
 }
 
@@ -871,6 +885,86 @@ def _table(rows: list[str], styles: dict, width: float, font: str) -> Table:
     return table
 
 
+def _md_rows(block: list[str]) -> list[list[str]]:
+    """마크다운 표 줄들을 칸 목록으로. (|---| 구분선은 뺀다)"""
+    rows = [[c.strip() for c in line.strip().strip("|").split("|")] for line in block]
+    return [r for r in rows if not all(re.fullmatch(r":?-{3,}:?", c) for c in r)]
+
+
+def _column_box(title: str, caption: str, cards: list, width: float, background: str, bar: str,
+                styles: dict) -> Table:
+    """구도 그림의 한 칸: 제목 → 기업 카드들 → 아래 설명."""
+    head = Paragraph(f'<font color="{bar}"><b>{_inline(title)}</b></font>', styles["cell"])
+    foot = Paragraph(f'<font size="7" color="{MUTED}">{_inline(caption)}</font>', styles["cell"])
+    box = Table([[head]] + [[c] for c in cards] + [[foot]], colWidths=[width])
+    box.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), _hex(background)),
+                             ("LINEABOVE", (0, 0), (-1, 0), 2.5, _hex(bar)),
+                             ("LEFTPADDING", (0, 0), (-1, -1), 7), ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+                             ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                             ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    return box
+
+
+def _landscape(block: list[str], styles: dict, width: float) -> Table:
+    """경쟁 구도 그림: [선도 기업(진입 위협)] ← [평가 대상] → [동급 기업(직접 경쟁)]."""
+    rows = _md_rows(block)[1:]   # 첫 줄은 제목
+    groups = {LEADING_TIER: [], TARGET_TIER: [], PEER_TIER: []}
+    for row in rows:
+        tier, name, country, product, comparison = (row + [""] * 5)[:5]
+        groups[tier if tier in groups else PEER_TIER].append((name, country, product, comparison))
+
+    def card(name, country, product, comparison):
+        meta = " · ".join(v for v in (country, product) if v and v != "–")
+        text = f"<b>{_inline(name)}</b>" + (f' <font size="7.5" color="{MUTED}">{_inline(meta)}</font>' if meta else "")
+        if comparison and comparison != "–":
+            text += f'<br/><font size="7.5">{_inline(comparison)}</font>'
+        return Paragraph(text, styles["cell"])
+
+    none = [Paragraph(f'<font color="{MUTED}">해당 기업 없음</font>', styles["cell"])]
+    side_w, mid_w, gap_w = width * 0.37, width * 0.2, width * 0.03
+    left = _column_box(f"{LEADING_TIER} · 대기업·상장사", "진입 위협 (시장 장악력)",
+                       [card(*g) for g in groups[LEADING_TIER]] or none, side_w - 2, PANEL, HOLD, styles)
+    right = _column_box(f"{PEER_TIER} · 비상장 스타트업", "직접 경쟁 (비슷한 단계)",
+                        [card(*g) for g in groups[PEER_TIER]] or none, side_w - 2, PANEL, NAVY, styles)
+    target = groups[TARGET_TIER][0] if groups[TARGET_TIER] else ("", "", "", "")
+    mid_style = ParagraphStyle("mid", parent=styles["cell"], textColor=colors.white, alignment=1)
+    mid = Table([[Paragraph('<font size="7.5">평가 대상</font>', mid_style)],
+                 [Paragraph(f'<font size="11"><b>{_inline(target[0])}</b></font>', mid_style)],
+                 [Paragraph(f'<font size="7.5">{_inline(target[2])}</font>', mid_style)]], colWidths=[mid_w - 2])
+    mid.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), _hex(NAVY)),
+                             ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4)]))
+    arrow = ParagraphStyle("arrow", parent=styles["cell"], alignment=1, textColor=_hex(MUTED))
+    outer = Table([[left, Paragraph("◀", arrow), mid, Paragraph("▶", arrow), right]],
+                  colWidths=[side_w, gap_w, mid_w, gap_w, side_w])
+    outer.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                               ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+    return outer
+
+
+def _two_panels(block: list[str], styles: dict, width: float) -> Table:
+    """차별점(강점) / 경쟁 리스크 2칸 패널. 표의 각 열을 목록으로 그린다."""
+    rows = _md_rows(block)
+    titles, body = rows[0], rows[1:]
+
+    def panel(col: int, bar: str, w: float) -> Table:
+        items = [r[col] for r in body if len(r) > col and r[col]]
+        cells = [[Paragraph(f'<font color="{bar}"><b>{_inline(titles[col])}</b></font>', styles["cell"])]]
+        cells += [[Paragraph(_inline(t), styles["bullet"], bulletText="•")] for t in items] or \
+                 [[Paragraph(f'<font color="{MUTED}">자료 없음</font>', styles["cell"])]]
+        box = Table(cells, colWidths=[w])
+        box.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), _hex(PANEL)),
+                                 ("LINEBEFORE", (0, 0), (0, -1), 3, _hex(bar)),
+                                 ("LEFTPADDING", (0, 0), (-1, -1), 8), ("TOPPADDING", (0, 0), (-1, -1), 2),
+                                 ("BOTTOMPADDING", (0, 0), (-1, -1), 2), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+        return box
+
+    half = (width - 8) / 2
+    outer = Table([[panel(0, GOOD, half - 2), "", panel(1, BAD, half - 2)]], colWidths=[half, 8, half])
+    outer.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
+                               ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+    return outer
+
+
 def content_flowables(lines: list[str], styles: dict, width: float, font: str) -> list:
     """제목을 뺀 내용 줄들을 PDF 조각(표·목록·문단)으로 바꾼다."""
     flow, i = [], 0
@@ -881,7 +975,13 @@ def content_flowables(lines: list[str], styles: dict, width: float, font: str) -
             while i < len(lines) and lines[i].startswith("|"):
                 block.append(lines[i])
                 i += 1
-            flow += [_table(block, styles, width, font), Spacer(1, 4)]
+            first = _md_rows(block)[0][0] if _md_rows(block) else ""
+            if first == LANDSCAPE_HEADER:      # 경쟁 구도 표 → 구도 그림
+                flow += [Spacer(1, 2), _landscape(block, styles, width), Spacer(1, 6)]
+            elif first == STRENGTH_HEADER:     # 차별점·경쟁 리스크 표 → 2칸 패널
+                flow += [_two_panels(block, styles, width), Spacer(1, 6)]
+            else:
+                flow += [_table(block, styles, width, font), Spacer(1, 4)]
             continue
         if HR_PATTERN.fullmatch(line):  # '---' 구분선은 글자로 찍히지 않게 건너뛴다
             i += 1
@@ -1053,22 +1153,47 @@ def _radar(items: dict, font: str, bold: str, w: float, h: float = DASH_HEIGHT) 
     return d
 
 
-def _rejected_bars(rejected: list[dict], font: str, bold: str, w: float) -> Drawing | None:
-    """'추천 기업 없음' 보고서용: 후보별 환산 점수 막대와 70점 기준선."""
-    rows = [r for r in rejected if isinstance(r.get("total"), (int, float))][:MAX_REJECTED_ROWS]
-    if not rows:
+def candidate_rows(state: dict) -> list[tuple[str, float | None, str]]:
+    """평가 순서대로 (후보, 환산 점수, 상태). 상태: 투자 / 보류 / 조건 미충족 / 미평가.
+
+    투자 결정이 나오면 그래프가 멈추므로 뒤 순번 후보는 점수가 없다('미평가').
+    """
+    rejected = {r.get("company"): r for r in state.get("rejected") or [] if isinstance(r, dict)}
+    names = state.get("candidates") or list(rejected)
+    selected = (state.get("company") or {}).get(COMPANY_NAME_KEY) if _is_recommend_mode(state) else None
+    rows = []
+    for name in names:
+        if name == selected:
+            rows.append((name, recompute_total(state.get("scores") or {}), DECISION_INVEST))
+        elif name in rejected:
+            total = rejected[name].get("total")
+            rows.append((name, total, "보류") if isinstance(total, (int, float)) else (name, None, "조건 미충족"))
+        else:
+            rows.append((name, None, "미평가"))
+    return rows
+
+
+def _candidate_bars(state: dict, font: str, bold: str, w: float) -> Drawing | None:
+    """후보별 환산 점수 막대(평가 순서)와 70점 기준선. 선정 기업은 초록, 보류는 주황, 점수 없는 후보는 글자로."""
+    rows = candidate_rows(state)[:MAX_CANDIDATE_ROWS]
+    if not any(total is not None for _, total, _ in rows):
         return None
-    row_h, label_w = 22, 90
-    d = Drawing(w, row_h * len(rows) + 16)
+    row_h, label_w, title_h = 20, 90, 14
     bar_w = w - label_w - 40
     top = row_h * len(rows)
-    for i, r in enumerate(rows):
+    d = Drawing(w, top + 16 + title_h)
+    d.add(String(0, top + 18, "후보별 환산 점수 (평가 순서)", fontName=bold, fontSize=8.5, fillColor=_hex(NAVY)))
+    for i, (name, total, status) in enumerate(rows):
         y = top - (i + 1) * row_h + 6
-        d.add(String(0, y + 2, str(r.get("company", "?"))[:10], fontName=font, fontSize=8.5, fillColor=_hex(INK)))
+        d.add(String(0, y + 2, str(name)[:10], fontName=bold if status == DECISION_INVEST else font,
+                     fontSize=8.5, fillColor=_hex(INK)))
         d.add(Rect(label_w, y, bar_w, 10, fillColor=_hex(LINE), strokeColor=None))
-        d.add(Rect(label_w, y, bar_w * min(r["total"], 100) / 100, 10, fillColor=_hex(HOLD), strokeColor=None))
-        d.add(String(label_w + bar_w + 6, y + 2, f'{r["total"]:g}', fontName=bold, fontSize=8.5,
-                     fillColor=_hex(INK)))
+        if total is None:
+            d.add(String(label_w + 6, y + 2, status, fontName=font, fontSize=8, fillColor=_hex(MUTED)))
+            continue
+        color = GOOD if status == DECISION_INVEST else HOLD
+        d.add(Rect(label_w, y, bar_w * min(total, 100) / 100, 10, fillColor=_hex(color), strokeColor=None))
+        d.add(String(label_w + bar_w + 6, y + 2, f"{total:g}", fontName=bold, fontSize=8.5, fillColor=_hex(INK)))
     x = label_w + bar_w * DECISION_THRESHOLD / 100
     d.add(Line(x, 2, x, top + 4, strokeColor=_hex(NAVY), strokeWidth=1.4))
     d.add(String(x, top + 6, f"투자 기준 {DECISION_THRESHOLD}", fontName=font, fontSize=7.5,
@@ -1143,19 +1268,21 @@ def build_dashboard(state: dict, report: str, report_date: str, font: str, bold:
 
     # 모양은 '점수가 있는가'가 아니라 '투자 추천인가'로 고른다. 모든 후보가 보류되면 State에는
     # 마지막 후보의 점수가 남아 있어서, 점수로 고르면 추천 없음 보고서가 그 후보의 보고서처럼 보인다
-    if _is_recommend_mode(state) and total is not None and items:  # 투자 추천: 게이지 + 레이더 + 검증 배지
+    bars = _candidate_bars(state, font, bold, width)   # 평가된 후보 전체의 환산 점수 (두 보고서 공통)
+    if _is_recommend_mode(state) and total is not None and items:
+        # 투자 추천: 선정 기업 게이지 + 레이더 → 후보별 점수 막대 → 검증 배지
         decision = scores.get("decision", "미정")
         card_w = width * CARD_RATIO
         row = Table([[_score_card(total, decision, font, bold, card_w - 8),
                       _radar(items, font, bold, width - card_w)]], colWidths=[card_w, width - card_w])
         row.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
         header = [_title_band(company, decision, report_date, normal, font, bold, width), Spacer(1, 4)]
-        visuals = [Spacer(1, 10), row, Spacer(1, 6), _badge_strip(state, report, normal, width), Spacer(1, 4)]
+        visuals = [Spacer(1, 10), row, Spacer(1, 6)] + ([bars, Spacer(1, 6)] if bars else [])
+        visuals += [_badge_strip(state, report, normal, width), Spacer(1, 4)]
         return header, visuals
 
     # 추천 기업 없음: 제목 밴드 + 후보별 점수 막대 + 검증 배지(특정 기업 기준인 정보 부족·인용은 뺀다)
     header = [_title_band({}, "추천 기업 없음", report_date, normal, font, bold, width), Spacer(1, 4)]
-    bars = _rejected_bars(state.get("rejected") or [], font, bold, width)
     visuals = [Spacer(1, 10), bars, Spacer(1, 4)] if bars else []
     if state.get("verify_result"):
         visuals += [Spacer(1, 6), _badge_strip(state, report, normal, width, per_company=False), Spacer(1, 4)]
