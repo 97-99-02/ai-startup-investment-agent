@@ -242,7 +242,7 @@ def build_evidence(state: dict) -> dict:
     # 점수로 쓸 수 있는 값: 항목 점수, 기여 점수, 환산 점수, 기준·만점·정보 부족 상한
     scores = state.get("scores") or {}
     points = {float(DECISION_THRESHOLD), float(SCORE_MAX), float(INSUFFICIENT_MAX_SCORE),
-              float(CORE_MIN_SCORE)}   # 보류 조건 점검 줄의 '핵심 역량 3점 미만'
+              float(CORE_MIN_SCORE)}   # 보류 조건 점검 줄의 '핵심 역량 N점 미만' (N = config.CORE_MIN_SCORE)
     points |= {float(info["score"]) for info in score_items(scores).values() if "score" in info}
     contributions = item_contributions(scores)
     if contributions is not None:

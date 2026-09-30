@@ -39,8 +39,8 @@ from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.pdfbase.ttfonts import TTFError, TTFont
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from config import (ALLOWED_ROUNDS, CORE_ITEMS, CORE_MIN_SCORE, INVEST_THRESHOLD, MAX_CANDIDATES,
-                    MAX_REPORT_RETRY, MODEL_ANALYZE)
+from config import (ALLOWED_ROUNDS, CORE_CAUTION_SCORE, CORE_ITEMS, CORE_MIN_SCORE, INVEST_THRESHOLD,
+                    MAX_CANDIDATES, MAX_REPORT_RETRY, MODEL_ANALYZE)
 from config import WEIGHTS as TEAM_WEIGHTS
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,8 @@ SYSTEM_PROMPT = """당신은 AI 반도체 스타트업 투자 보고서를 쓰�
    **핵심 리스크**
    - 리스크 (정확히 3개)
    **확인 필요**
-   - 추가 확인이 필요한 사항 (1~2개)
+   - 추가 확인이 필요한 사항 (1~2개). [분석 자료]에 summary_caution이 있으면 그 내용(항목명과 점수)을
+     한 항목으로 반드시 포함합니다. (예: 기술·제품 성숙도 2점(정보 부족으로 제한) 확인 필요)
 6. 'REFERENCE' 장은 쓰지 않습니다. (코드가 실제 사용 출처로 자동 첨부합니다.)
 7. 본문 전체는 5장(페이지) 이내 분량, 한글 기준 약 8,000자 이내로 간결하게 씁니다.
 8. '투자 판단 결과' 장에는 점수표를 직접 쓰지 말고, 표가 들어갈 자리에 {{SCORE_TABLE}} 한 줄만 쓰세요.
@@ -188,9 +189,7 @@ CANDIDATE_PLACEHOLDER = "{{CANDIDATE_TABLE}}"        # '추천 기업 없음' �
 SECTION2_PATTERN = re.compile(r"^##\s*2\.[^\n]*\n", re.MULTILINE)
 SECTION4_PATTERN = re.compile(r"^##\s*4\.[^\n]*\n", re.MULTILINE)
 SECTION5_PATTERN = re.compile(r"^##\s*5\.[^\n]*\n", re.MULTILINE)
-NEXT_H2_PATTERN = re.compile(r"^##\s", re.MULTILINE)
 HR_PATTERN = re.compile(r"^[ \t]*(?:[-*_][ \t]*){3,}$\n?", re.MULTILINE)  # AI가 넣는 '---' 구분선
-CANDIDATE_HEADING = "### 후보 평가 과정"
 LEADING_TIER = "선도 기업"                            # 경쟁 구도에서 왼쪽(진입 위협)에 놓을 구분
 PEER_TIER = "동급 기업"                               # 오른쪽(직접 경쟁)에 놓을 구분
 TARGET_TIER = "평가 대상"
@@ -265,6 +264,23 @@ def build_score_table(scores: dict) -> str:
     return "\n".join(lines)
 
 
+def cautions_of(scores: dict) -> list[dict]:
+    """투자 판단이 남긴 주의 목록 [{item, label, score, insufficient, comment}]. 없거나 형식이 다르면 빈 목록.
+
+    핵심 항목(기술·팀)이 낮아도 보류가 아닐 때 독자에게 알리려는 것. insufficient가 True면 정보 부족으로 제한된 점수,
+    False면 실제로 낮게 평가한 점수다.
+    """
+    found = scores.get("cautions")
+    return [c for c in found if isinstance(c, dict) and c.get("comment")] if isinstance(found, list) else []
+
+
+def caution_summary_hint(scores: dict) -> str:
+    """SUMMARY '확인 필요'에 쓸 주의 문구(항목명·점수·이유만, 짧게). 주의가 없으면 빈 문자열."""
+    return ", ".join(
+        f"{c.get('label', c.get('item', ''))} {c.get('score', '')}점" + ("(정보 부족으로 제한)" if c.get("insufficient") else "")
+        for c in cautions_of(scores))
+
+
 def build_decision_checks(scores: dict) -> list[str]:
     """설계서 3.4 보류 조건을 하나씩 점검한 결과. 점수만으로는 안 보이는 '왜 투자(보류)인가'를 보여 준다.
 
@@ -277,6 +293,8 @@ def build_decision_checks(scores: dict) -> list[str]:
         shown = ", ".join(f"{name} {score}점" for name, score in core)
         ok = all(score >= CORE_MIN_SCORE for _, score in core)
         lines.append(f"보류 조건 ① 핵심 역량 {CORE_MIN_SCORE}점 미만: {shown} → **{'해당 없음' if ok else '해당'}**")
+        # 2점처럼 보류는 아니지만 낮은 핵심 항목은 투자 판단이 남긴 주의 코멘트를 옮긴다 (주의: 보류 조건은 아님)
+        lines += [f"   ⚠ 주의: {c['comment']}" for c in cautions_of(scores)]
     legal = scores.get("legal_risk")
     if isinstance(legal, dict):
         verdict = "미해소 → 해당" if legal.get("unresolved") else "해당 없음"
@@ -321,31 +339,17 @@ def build_competitor_table(state: dict) -> str:
 
 
 def build_candidate_table(state: dict) -> str | None:
-    """후보 평가 과정 표: 발굴한 후보를 평가 순서대로, 결과·환산 점수·사유와 함께 보여 준다. 후보 정보가 없으면 None.
+    """'추천 기업 없음' 보고서 2장의 후보 표: 평가 순서대로 결과·환산 점수·사유. 후보 정보가 없으면 None.
 
-    추천 기업이 없으면 State의 company는 '마지막으로 평가한 후보'일 뿐이므로 선정 기업으로 보지 않는다.
+    (투자 추천 보고서에는 넣지 않는다: 첫 투자 결정에서 평가를 멈춰 뒤 후보는 점수가 없다)
     """
-    candidates = state.get("candidates") or []
-    selected = (state.get("company") or {}).get(COMPANY_NAME_KEY) if _is_recommend_mode(state) else None
-    if not candidates:
+    if not state.get("candidates"):
         return None
-    rejected = {r.get("company"): r for r in state.get("rejected") or [] if isinstance(r, dict)}
-    total = recompute_total(state.get("scores") or {})
+    reasons = {r.get("company"): r.get("reason") for r in state.get("rejected") or [] if isinstance(r, dict)}
     lines = ["| 순서 | 후보 | 결과 | 환산 점수 | 사유 |", "|---|---|---|---|---|"]
-    after_selected = False
-    for i, name in enumerate(candidates, 1):
-        if name == selected:
-            row = ("**투자**", f"{total:.1f}" if total is not None else "–", "투자 기준 충족, 평가 종료")
-            after_selected = True
-        elif name in rejected:
-            r = rejected[name]
-            score = r.get("total")
-            row = ("보류" if isinstance(score, (int, float)) else "조건 미충족",
-                   f"{score:.1f}" if isinstance(score, (int, float)) else "–", r.get("reason"))
-        else:
-            row = ("미평가", "–", "앞 순서 후보에서 투자 결정" if after_selected else "–")
-        name_cell = f"**{_cell(name)}**" if name == selected else _cell(name)
-        lines.append(f"| {i} | {name_cell} | {row[0]} | {_cell(row[1])} | {_cell(row[2])} |")
+    for i, (name, total, status) in enumerate(candidate_rows(state), 1):
+        score = f"{total:.1f}" if total is not None else "–"
+        lines.append(f"| {i} | {_cell(name)} | {status} | {score} | {_cell(reasons.get(name))} |")
     return "\n".join(lines)
 
 
@@ -377,20 +381,6 @@ def _insert_table(body: str, placeholder: str, table: str, section: re.Pattern, 
 def insert_competitor_table(body: str, state: dict) -> str:
     """4장의 자리표시자를 경쟁사 표로 바꾼다. 자리표시자가 없으면 4장 제목 아래에 넣는다."""
     return _insert_table(body, COMPETITOR_PLACEHOLDER, build_competitor_table(state), SECTION4_PATTERN, "경쟁사 표")
-
-
-def insert_candidate_table(body: str, state: dict) -> str:
-    """5장 끝(6장 바로 앞)에 후보 평가 과정 표를 넣는다. 5장을 못 찾으면 본문 끝에 붙인다."""
-    table = build_candidate_table(state)
-    if table is None:
-        return body
-    block = f"{CANDIDATE_HEADING}\n{table}\n\n"
-    match = SECTION5_PATTERN.search(body)
-    if match:
-        nxt = NEXT_H2_PATTERN.search(body, match.end())
-        if nxt:
-            return body[: nxt.start()].rstrip() + "\n\n" + block + body[nxt.start():]
-    return body.rstrip() + "\n\n" + block
 
 
 # ═════════════════════════════════════════════════════════════
@@ -530,11 +520,12 @@ def _summary_structure_violations(summary: str) -> list[str]:
 
 
 def check_format(report: str, structured_summary: bool = False,
-                 summary_names: list[str] | tuple = ()) -> list[str]:
+                 summary_names: list[str] | tuple = (), summary_cautions: list[str] | tuple = ()) -> list[str]:
     """과제 조건 위반 목록을 돌려준다. 비어 있으면 모두 통과.
 
     점검: SUMMARY 맨 앞·길이, REFERENCE 맨 뒤, 전체 5장 이내(글자 수 근사),
-    structured_summary=True면 SUMMARY 고정 틀까지, summary_names가 있으면 SUMMARY에 그 이름(후보)이 모두 있는지.
+    structured_summary=True면 SUMMARY 고정 틀까지, summary_names가 있으면 SUMMARY에 그 이름(후보)이 모두 있는지,
+    summary_cautions가 있으면 SUMMARY '확인 필요'에 그 항목 이름이 있는지.
     (실제 페이지 수는 PDF 저장 때 다시 센다)
     """
     sections = _sections(report)
@@ -556,6 +547,11 @@ def check_format(report: str, structured_summary: bool = False,
         if missing_names:
             violations.append(f"SUMMARY 결론에 평가 후보 이름이 빠졌습니다: {', '.join(missing_names)}. "
                               f"후보 이름을 모두 쓰고 그중 선정되었다고 밝히세요.")
+        confirm = first_body.split("**확인 필요**", 1)[1] if "**확인 필요**" in first_body else ""
+        missing_cautions = [c for c in summary_cautions if c not in confirm]
+        if missing_cautions:
+            violations.append(f"SUMMARY '확인 필요'에 핵심 항목 주의가 빠졌습니다: {', '.join(missing_cautions)}. "
+                              f"항목 이름과 점수를 한 항목으로 쓰세요(1~2개 항목 안에서).")
 
     if "REFERENCE" not in last_title.upper():
         violations.append(f"맨 뒤 장이 REFERENCE가 아닙니다(현재: '{last_title}').")
@@ -596,6 +592,9 @@ def build_materials(state: dict, sources: list[dict]) -> dict:
         # SUMMARY 결론에 '후보 A, B, C 중 선정'을 쓰게 하려는 것. (평가 순서·사유 표는 코드가 5장에 넣는다)
         materials["selection"] = {"candidates": state.get("candidates") or [],
                                   "selected": state["company"].get(COMPANY_NAME_KEY)}
+        hint = caution_summary_hint(state["scores"])
+        if hint:   # 핵심 항목이 낮은 채로 투자 결정이 났을 때 SUMMARY '확인 필요'에 반드시 알린다
+            materials["summary_caution"] = hint
     else:
         materials = {"candidates": state.get("candidates") or []}
     materials["rejected"] = state.get("rejected", [])  # 보류·제외 기업과 사유는 한계점에 항상 쓰인다
@@ -612,6 +611,7 @@ def evaluation_rules() -> dict:
         "보류 조건": [f"{core} 중 하나라도 {CORE_MIN_SCORE}점 미만(핵심 역량 미달)",
                   "핵심 기술 관련 법률 리스크가 해소되지 않음",
                   f"환산 점수 {DECISION_THRESHOLD}점 미만"],
+        "주의 규칙": f"{core}가 {CORE_CAUTION_SCORE}점 이하이면 보류 사유는 아니지만 보고서에 주의로 알린다",
         "정보 부족 규칙": f"공개 정보로 확인할 수 없는 항목은 최대 {INSUFFICIENT_MAX_SCORE}점",
         "평가 방식": f"발굴한 후보(최대 {MAX_CANDIDATES}곳)를 순서대로 평가하고, 처음으로 투자 결정이 나오면 멈춘다",
     }
@@ -624,7 +624,6 @@ def assemble_report(state: dict, body: str, sources: list[dict]) -> str:
     if _is_recommend_mode(state):
         body = insert_score_table(body, state["scores"])
         body = insert_competitor_table(body, state)
-        body = insert_candidate_table(body, state)
         body, sources = keep_cited_sources(body, sources)   # REFERENCE에는 본문에서 인용한 출처만
     else:  # 추천 없음 보고서: 점수표·경쟁사 표 대신 2장에 후보별 결과 표(코드가 State에서 만든다)
         body = body.replace(PLACEHOLDER, "").replace(COMPETITOR_PLACEHOLDER, "")
@@ -691,7 +690,9 @@ def reporter_node(state: dict, llm=None) -> dict:
         report = assemble_report(state, response.content.strip(), sources)
 
         violations = check_format(report, structured_summary=recommend,   # 과제 조건을 코드로 점검
-                                  summary_names=(state.get("candidates") or []) if recommend else ())
+                                  summary_names=(state.get("candidates") or []) if recommend else (),
+                                  summary_cautions=[c.get("label", "") for c in cautions_of(state["scores"])
+                                                    if c.get("label")] if recommend else ())
         if not violations:
             break
         logger.warning("[보고서 생성] 과제 조건 위반 %d건: %s", len(violations), violations)
@@ -1268,20 +1269,20 @@ def build_dashboard(state: dict, report: str, report_date: str, font: str, bold:
 
     # 모양은 '점수가 있는가'가 아니라 '투자 추천인가'로 고른다. 모든 후보가 보류되면 State에는
     # 마지막 후보의 점수가 남아 있어서, 점수로 고르면 추천 없음 보고서가 그 후보의 보고서처럼 보인다
-    bars = _candidate_bars(state, font, bold, width)   # 평가된 후보 전체의 환산 점수 (두 보고서 공통)
     if _is_recommend_mode(state) and total is not None and items:
-        # 투자 추천: 선정 기업 게이지 + 레이더 → 후보별 점수 막대 → 검증 배지
+        # 투자 추천: 선정 기업 게이지 + 레이더 → 검증 배지
+        # (후보별 점수 막대는 넣지 않는다: 첫 투자 결정에서 평가를 멈춰 뒤 후보는 점수가 없다. 후보 이름은 SUMMARY 결론에 있다)
         decision = scores.get("decision", "미정")
         card_w = width * CARD_RATIO
         row = Table([[_score_card(total, decision, font, bold, card_w - 8),
                       _radar(items, font, bold, width - card_w)]], colWidths=[card_w, width - card_w])
         row.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
         header = [_title_band(company, decision, report_date, normal, font, bold, width), Spacer(1, 4)]
-        visuals = [Spacer(1, 10), row, Spacer(1, 6)] + ([bars, Spacer(1, 6)] if bars else [])
-        visuals += [_badge_strip(state, report, normal, width), Spacer(1, 4)]
+        visuals = [Spacer(1, 10), row, Spacer(1, 6), _badge_strip(state, report, normal, width), Spacer(1, 4)]
         return header, visuals
 
-    # 추천 기업 없음: 제목 밴드 + 후보별 점수 막대 + 검증 배지(특정 기업 기준인 정보 부족·인용은 뺀다)
+    # 추천 기업 없음: 제목 밴드 + 후보별 점수 막대(모든 후보가 채점됨) + 검증 배지(정보 부족·인용은 뺀다)
+    bars = _candidate_bars(state, font, bold, width)
     header = [_title_band({}, "추천 기업 없음", report_date, normal, font, bold, width), Spacer(1, 4)]
     visuals = [Spacer(1, 10), bars, Spacer(1, 4)] if bars else []
     if state.get("verify_result"):
