@@ -6,7 +6,7 @@ LLM: config.MODEL_JUDGE - 항목별 점수(1~5)와 근거·출처, 법률 리스
       보류 조건 적용 (설계 3.4, 3.5). 같은 점수에는 항상 같은 결정이 나온다
 출력: {"scores": {...}, "rejected": [...](보류일 때)}
   - scores: items({영문 키: {score, evidence, sources, insufficient}}), legal_risk, risks,
-    total(환산 점수), decision("투자" | "보류"), hold_reasons
+    total(환산 점수), decision("투자" | "보류"), hold_reasons, cautions(핵심 항목 2점 이하 주의 코멘트)
     graph.route_after_judge 가 scores["decision"] 으로 분기한다
   - rejected 항목: {"company": 기업명, "reason": 보류 사유, "total": 환산 점수}
 """
@@ -19,7 +19,7 @@ from typing import Literal
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from config import CORE_ITEMS, CORE_MIN_SCORE, INVEST_THRESHOLD, MODEL_JUDGE, WEIGHTS
+from config import CORE_CAUTION_SCORE, CORE_ITEMS, CORE_MIN_SCORE, INVEST_THRESHOLD, MODEL_JUDGE, WEIGHTS
 
 JUDGE_LOG_PATH = Path("outputs/judge_log.jsonl")   # 후보별 채점 로그 (outputs/*는 gitignore)
 logger = logging.getLogger(__name__)
@@ -171,6 +171,27 @@ def decide(items: dict, total: float, legal_unresolved: bool) -> tuple[str, list
     return ("보류" if reasons else "투자"), reasons
 
 
+def build_cautions(items: dict) -> list[dict]:
+    """핵심 항목(팀·기술)이 CORE_CAUTION_SCORE 이하이면 주의 코멘트를 만든다. 보류 여부와 별개다.
+    정보 부족으로 제한된 점수와 실제로 낮게 평가된 점수를 구분해 적는다. 보고서가 이 목록을 그대로 출력한다.
+    """
+    cautions = []
+    for key in CORE_ITEMS:
+        info = items[key]
+        if info["score"] > CORE_CAUTION_SCORE:
+            continue
+        reason = "정보 부족으로 최대 2점 제한" if info["insufficient"] else "낮은 평가"
+        basis = info["evidence"].removeprefix("정보 부족:").strip()[:100]
+        cautions.append({
+            "item": key,
+            "label": ITEM_LABELS[key],
+            "score": info["score"],
+            "insufficient": info["insufficient"],
+            "comment": f"{ITEM_LABELS[key]} {info['score']}점 ({reason}): {basis}",
+        })
+    return cautions
+
+
 def write_log(name: str, card: Scorecard, scores: dict) -> None:
     """후보 1개당 JSON 한 줄을 append한다. State에는 넣지 않는다. 실패해도 그래프는 멈추지 않는다."""
     try:
@@ -195,6 +216,7 @@ def write_log(name: str, card: Scorecard, scores: dict) -> None:
             "total": scores["total"],
             "decision": scores["decision"],
             "hold_reasons": scores["hold_reasons"],
+            "cautions": [c["comment"] for c in scores["cautions"]],
         }
         JUDGE_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with JUDGE_LOG_PATH.open("a", encoding="utf-8") as f:
@@ -232,6 +254,7 @@ def judge_node(state: dict) -> dict:
         "total": total,
         "decision": decision,
         "hold_reasons": hold_reasons,
+        "cautions": build_cautions(items),
     }
     write_log(name, card, scores)
     out = {"scores": scores}

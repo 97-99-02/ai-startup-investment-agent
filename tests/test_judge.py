@@ -55,14 +55,20 @@ def test_all_4_invests():
 
 
 def test_cutoff_boundary():
-    at70 = dict(tech=item(4), market=item(3), team=item(4), traction=item(3), competition=item(3), deal=item(3))
+    at70 = dict(tech=item(3), market=item(4), team=item(4), traction=item(3), competition=item(3), deal=item(2))
     assert evaluate(card(**at70))[1:] == (70.0, ("투자", []))
-    assert evaluate(card(**{**at70, "deal": item(2)}))[2][0] == "보류"
+    assert evaluate(card(**{**at70, "deal": item(1)}))[1:] == (69.0, ("보류", ["환산 점수 69점 < 기준 70점"]))
 
 
 def test_core_item_hold_even_when_total_high():
-    _, total, (decision, why) = evaluate(card(**{**{k: item(5) for k in KEYS}, "team": item(2)}))
+    _, total, (decision, why) = evaluate(card(**{**{k: item(5) for k in KEYS}, "team": item(1)}))
     assert total > 70 and decision == "보류" and any("창업자·팀" in w for w in why)
+
+
+def test_core_item_2_points_is_not_core_shortfall():
+    """핵심 역량 미달은 1점 이하 (2점은 미달이 아님)."""
+    _, total, (decision, why) = evaluate(card(**{**{k: item(5) for k in KEYS}, "tech": item(2)}))
+    assert total > 70 and decision == "투자" and why == []
 
 
 def test_no_source_caps_at_2():
@@ -112,7 +118,7 @@ def test_total_matches_reporter_for_all_combinations():
 
 
 def test_node_rejected_format_and_company_filter(monkeypatch):
-    out = run_node(monkeypatch, card(tech=item(2)))
+    out = run_node(monkeypatch, card(tech=item(1)))
     scores, rej = out["scores"], out["rejected"][0]
     assert scores["decision"] == "보류"
     assert rej == {"company": "A", "reason": "; ".join(scores["hold_reasons"]), "total": scores["total"]}
@@ -167,3 +173,28 @@ def test_log_write_failure_does_not_stop_node(monkeypatch, tmp_path):
     monkeypatch.setattr(judge, "JUDGE_LOG_PATH", blocker / "sub" / "log.jsonl")   # 파일 아래 경로: 쓸 수 없음
     out = run_node(monkeypatch, card())
     assert out["scores"]["decision"] == "투자"
+
+
+def test_cautions_for_low_core_items():
+    # 기술: 정보 부족(출처 없음)으로 2점 제한, 팀: 실제로 2점으로 평가. 투자 결정과는 별개
+    items, _, _ = evaluate(card(**{**{k: item(5) for k in KEYS}, "tech": item(5, ids=()), "team": item(2)}))
+    cautions = judge.build_cautions(items)
+    by_item = {c["item"]: c for c in cautions}
+    assert set(by_item) == {"tech", "team"}
+    assert by_item["tech"]["insufficient"] and "정보 부족" in by_item["tech"]["comment"]
+    assert not by_item["team"]["insufficient"] and "낮은 평가" in by_item["team"]["comment"]
+    assert all(c["comment"].startswith(c["label"]) and str(c["score"]) in c["comment"] for c in cautions)
+
+
+def test_no_caution_when_core_items_are_3_or_more_or_non_core_low():
+    items, _, _ = evaluate(card(**{**{k: item(4) for k in KEYS}, "tech": item(3), "deal": item(1), "traction": item(2)}))
+    assert judge.build_cautions(items) == []     # 핵심 항목(팀·기술)이 아닌 낮은 점수는 코멘트 대상 아님
+
+
+def test_node_returns_cautions_and_logs_them(monkeypatch, isolated_log):
+    import json
+    out = run_node(monkeypatch, card(**{**{k: item(5) for k in KEYS}, "tech": item(2)}))
+    scores = out["scores"]
+    assert scores["decision"] == "투자" and [c["item"] for c in scores["cautions"]] == ["tech"]
+    logged = json.loads(isolated_log.read_text(encoding="utf-8"))
+    assert logged["cautions"] == [c["comment"] for c in scores["cautions"]]
