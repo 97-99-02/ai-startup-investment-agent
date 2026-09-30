@@ -63,32 +63,44 @@ def date_from_url(url: str) -> str:
     return ""
 
 
-# 기사 페이지의 게시일 메타 태그 (article:published_time, JSON-LD datePublished 등)
-_META_DATE = re.compile(r"""(?:article:published_time|datePublished|pubdate|publish-date|dateCreated)["']?\s*"""
+# 기사 페이지의 게시일 메타 태그 (article:published_time, JSON-LD datePublished, 다음 뉴스의 regdate 등).
+# 매일경제TV는 article:published로 끝나는 이름을 쓴다
+_META_DATE = re.compile(r"""(?:article:published(?:_time)?|datePublished|pubdate|publish-date|dateCreated|regdate)["']?\s*"""
                         r"""(?:content|:)\s*=?\s*["'](20\d{2})[-./]?(\d{2})[-./]?(\d{2})""", re.I)
+# 메타 태그가 없는 언론사는 본문 머리에 '입력 : 2026.06.03', '입력시간 | 2026.07.04'처럼 적는다 (이데일리TV)
+_TEXT_DATE = re.compile(r"입력(?:시간|일)?\s*[:|]?\s*(20\d{2})[-.](\d{1,2})[-.](\d{1,2})")
+# 매일경제는 'Mozilla/5.0'만 보내면 403으로 막는다
+_BROWSER_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
 
 
 @lru_cache(maxsize=512)
 def date_from_page(url: str) -> str:
-    """기사 페이지를 읽어 게시일 메타 태그에서 날짜를 찾는다. 못 읽거나 없으면 빈 문자열.
+    """기사 페이지를 읽어 게시일 메타 태그(없으면 본문의 '입력' 날짜)에서 날짜를 찾는다. 못 읽거나 없으면 빈 문자열.
     Tavily 게시일도 URL 날짜도 없어 보고서 REFERENCE에 '날짜 미상'이 많이 남았다. 메타 태그를 확인한
     기사는 Tavily 게시일과 모두 일치해 같은 기준으로 쓴다. 문서용 예약 도메인(example.org 등)은 요청하지 않는다."""
     host = urlparse(url).hostname or ""
     if not url.startswith(("http://", "https://")) or host.split(".")[-2:-1] == ["example"]:
         return ""
     try:
-        request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        request = urllib.request.Request(url, headers={"User-Agent": _BROWSER_UA})
         with urllib.request.urlopen(request, timeout=4) as response:
             html = response.read(300_000).decode("utf-8", "ignore")
     except Exception:  # noqa: BLE001 - 날짜를 못 읽어도 출처 기록은 계속한다
         return ""
-    for y, m, d in _META_DATE.findall(html):
-        try:
-            found = date(int(y), int(m), int(d))
-        except ValueError:
-            continue
-        if found <= date.today():
-            return found.isoformat()
+    return date_in_page(html)
+
+
+def date_in_page(html: str) -> str:
+    """페이지 HTML에서 게시일을 찾는다. 메타 태그를 먼저 보고, 없을 때만 본문의 '입력' 날짜를 쓴다."""
+    for pattern in (_META_DATE, _TEXT_DATE):
+        for y, m, d in pattern.findall(html):
+            try:
+                found = date(int(y), int(m), int(d))
+            except ValueError:
+                continue
+            if found <= date.today():
+                return found.isoformat()
     return ""
 
 
