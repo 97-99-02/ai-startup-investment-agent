@@ -8,6 +8,8 @@
         - 본문 [n] 번호가 REFERENCE에 있는지, 환산 점수 재계산이 맞는지
     2단계 — RAG 원문 대조(문서에서 온 기술·시장 내용, Self-RAG 방식)
         - 검색 → 관련성 검사 → (관련 없으면) 검색어 재작성 후 재검색 → 관련 조각으로만 근거성 검사
+        - 문장이 인용한 출처의 근거 원문(분석 에이전트가 실제로 읽은 조각)도 함께 대조한다.
+          시장 문서는 기관마다 전망치가 달라, 인용하지 않은 기관 조각만 검색되면 맞는 수치를 틀렸다고 하기 때문이다.
         - 관련 원문을 끝내 못 찾은 문장은 틀렸다고 하지 않고 '판정 제외'(엉뚱한 조각 때문의 오탐 방지)
           수치가 원문에 있는지(코드) + 원문과 모순되지 않는지(LLM 검수)
         - 분석 에이전트가 문서를 잘못 옮겨 State가 틀린 경우도 잡는다.
@@ -28,6 +30,7 @@ import logging
 import os
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
 from agents.reporter import (
     DECISION_THRESHOLD,
@@ -36,14 +39,15 @@ from agents.reporter import (
     SCORE_MAX,
     WEIGHTS,
     _is_recommend_mode,
-    collect_sources,
+    cited_source_map,
     find_insufficient_items,
     item_contributions,
+    printed_reference_numbers,
     recompute_total,
     score_items,
 )
 
-from config import MAX_REPORT_RETRY, MODEL_ANALYZE
+from config import CORE_MIN_SCORE, MAX_REPORT_RETRY, MODEL_ANALYZE
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +71,14 @@ JUDGE_USER_TEMPLATE = """[분석 자료 - JSON]
 """
 
 # ── 사실 검증: RAG 원문 대조 Judge ───────────────────────────
-# 분석 자료(State)가 아니라 '원래 문서에서 다시 찾은 조각'을 기준으로 판정한다.
+# 분석 자료(State)가 아니라 '원래 문서에서 다시 찾은 조각'과 '문장이 인용한 출처의 근거 원문'을 기준으로 판정한다.
 RAG_JUDGE_SYSTEM = """당신은 투자 보고서의 원문 대조 검증관입니다.
 각 [주장]과 그 아래 [원문 조각]을 비교해 판정합니다.
-- supported: 원문 조각에 같은 내용이 있거나 직접 도출된다.
-- unsupported: 원문 조각과 수치·사실이 다르거나, 원문보다 과장되었다.
+- supported: 원문 조각 중 하나라도 같은 내용이 있거나 직접 도출된다.
+- unsupported: 주장이 근거로 삼은 내용과 수치·사실이 다르거나, 원문보다 과장되었다.
 - not_found: 원문 조각에 이 주장과 관련된 내용이 아예 없다. (인터넷에서 온 정보일 수 있으므로 틀렸다고 보지 않는다)
+같은 시장이라도 기관마다 전망치가 다를 수 있습니다. 한 조각이 주장을 그대로 뒷받침하면, 다른 기관 조각의
+다른 수치만으로 unsupported로 판정하지 마세요.
 원문 조각에 없는 배경지식으로 판단하지 마세요.
 반드시 아래 JSON 형식으로만 응답하세요(다른 텍스트 없이):
 {"results": [{"id": 1, "verdict": "supported", "reason": "한 문장 근거"}]}"""
@@ -157,9 +163,11 @@ QUANTITY_PATTERN = re.compile(
     + "|".join(sorted(UNITS, key=len, reverse=True)) + r")?"
 )
 # 금액을 한글 숫자로 쓴 경우: '천억 원', '삼백억 달러'
-SPELLED_PATTERN = re.compile(r"[일이삼사오육칠팔구십백천]+\s*(?:조|억|만)\s*(?:원|달러)")
+# 앞에 숫자가 있으면 한글 숫자가 아니라 단위다('14백만달러', '3,400백만달러'는 원문 표기 그대로 쓴 정상 수치)
+SPELLED_PATTERN = re.compile(r"(?<![\d.,])[일이삼사오육칠팔구십백천]+\s*(?:조|억|만)\s*(?:원|달러)")
 CITATION_PATTERN = re.compile(r"\[(\d+)\]")            # [1] [12] — 수치 검사 때는 먼저 지운다
-SENTENCE_SPLIT = re.compile(r"(?<=[.다])\s+")           # 문장 나누기(마침표·'다' 뒤 공백)
+# 문장 나누기(마침표·'다' 뒤 공백). 뒤에 인용 번호가 오면 나누지 않는다('기업이다 [1].'의 [1]이 떨어져 나가지 않게)
+SENTENCE_SPLIT = re.compile(r"(?<=[.다])\s+(?!\[\d)")
 
 
 # ═════════════════════════════════════════════════════════════
@@ -233,7 +241,8 @@ def build_evidence(state: dict) -> dict:
 
     # 점수로 쓸 수 있는 값: 항목 점수, 기여 점수, 환산 점수, 기준·만점·정보 부족 상한
     scores = state.get("scores") or {}
-    points = {float(DECISION_THRESHOLD), float(SCORE_MAX), float(INSUFFICIENT_MAX_SCORE)}
+    points = {float(DECISION_THRESHOLD), float(SCORE_MAX), float(INSUFFICIENT_MAX_SCORE),
+              float(CORE_MIN_SCORE)}   # 보류 조건 점검 줄의 '핵심 역량 3점 미만'
     points |= {float(info["score"]) for info in score_items(scores).values() if "score" in info}
     contributions = item_contributions(scores)
     if contributions is not None:
@@ -241,11 +250,14 @@ def build_evidence(state: dict) -> dict:
         points |= rounded
         values |= rounded
     # 보류·제외된 후보의 환산 점수도 보고서('추천 기업 없음' 등)에 '58점'처럼 쓰인다
-    rejected_totals = [r.get("total") for r in (state.get("rejected") or []) if isinstance(r, dict)]
-    for total in [recompute_total(scores), scores.get("total")] + rejected_totals:
+    rejected = [r for r in (state.get("rejected") or []) if isinstance(r, dict)]
+    for total in [recompute_total(scores), scores.get("total")] + [r.get("total") for r in rejected]:
         if isinstance(total, (int, float)):
             points.add(round(float(total), 1))
             values.add(round(float(total), 1))
+    # 보류 사유에 적힌 점수('핵심 역량 미달: 창업자·팀 1점')도 후보 평가 과정 표에 그대로 옮겨진다
+    for r in rejected:
+        points |= {q["value"] for q in parse_quantities(str(r.get("reason", ""))) if q["unit"] == SCORE_UNIT}
     return {"pairs": pairs, "values": values, "points": points}
 
 
@@ -306,10 +318,13 @@ def find_wording_problems(report: str, state: dict) -> list[dict]:
     return problems
 
 
-def check_citations(report: str, sources: list[dict]) -> list[dict]:
-    """본문 [n] 중 REFERENCE에 없는 번호를 찾는다. (AI가 출처를 지어낸 경우를 잡는다)"""
+def check_citations(report: str) -> list[dict]:
+    """본문 [n] 중 REFERENCE에 없는 번호를 찾는다. (AI가 출처를 지어낸 경우를 잡는다)
+
+    보고서 생성이 인용한 출처만 남기고 번호를 다시 매기므로, State가 아니라 보고서에 찍힌 REFERENCE와 대조한다.
+    """
     body = _body_of(report)
-    valid = {s["n"] for s in sources}
+    valid = printed_reference_numbers(report)
     problems = []
     for n in sorted({int(m.group(1)) for m in CITATION_PATTERN.finditer(body)} - valid):
         problems.append({"kind": "citation", "value": f"[{n}]", "surface": f"[{n}]",
@@ -332,7 +347,7 @@ def check_total_score(scores: dict) -> list[dict]:
 # 3단계: LLM 검수
 # ═════════════════════════════════════════════════════════════
 def _section_sentences(report: str):
-    """본문을 (장 제목, 문장)으로 하나씩 내보낸다. 제목·표 줄은 건너뛴다."""
+    """본문을 (장 제목, 문장, 문장이 속한 문단)으로 하나씩 내보낸다. 제목·표 줄은 건너뛴다."""
     section = ""
     for line in _body_of(report).splitlines():
         text = line.strip()
@@ -345,7 +360,7 @@ def _section_sentences(report: str):
             text = text[2:]
         for sentence in SENTENCE_SPLIT.split(text.replace("**", "")):
             if sentence.strip():
-                yield section, sentence.strip()
+                yield section, sentence.strip(), text
 
 
 def _is_rag_section(section: str) -> bool:
@@ -355,11 +370,20 @@ def _is_rag_section(section: str) -> bool:
 def extract_claims(report: str, skip_rag_sections: bool = False) -> list[str]:
     """Judge에게 맡길 '인용이 달린 핵심 주장 문장'을 뽑는다. (표·제목은 제외, 상한 적용)
 
+    상한(MAX_JUDGE_CLAIMS)을 장마다 돌아가며 채운다. 앞에서부터 자르면 SUMMARY 문장이 상한을 다 써서
+    뒤쪽 장(경쟁 구도 등)이 검수에서 빠지기 때문이다. 결과는 본문 순서로 돌려준다.
     skip_rag_sections=True면 원문 대조(RAG)가 맡는 장은 빼서 같은 문장을 두 번 판정하지 않는다.
     """
-    claims = [sentence for section, sentence in _section_sentences(report)
-              if CITATION_PATTERN.search(sentence) and not (skip_rag_sections and _is_rag_section(section))]
-    return claims[:MAX_JUDGE_CLAIMS]
+    by_section: dict[str, list[tuple[int, str]]] = {}
+    for pos, (section, sentence, _) in enumerate(_section_sentences(report)):
+        if CITATION_PATTERN.search(sentence) and not (skip_rag_sections and _is_rag_section(section)):
+            by_section.setdefault(section, []).append((pos, sentence))
+    queues, picked = list(by_section.values()), []
+    while len(picked) < MAX_JUDGE_CLAIMS and any(queues):
+        for queue in queues:
+            if queue and len(picked) < MAX_JUDGE_CLAIMS:
+                picked.append(queue.pop(0))
+    return [sentence for _, sentence in sorted(picked)]
 
 
 def _resolve_judge(judge_llm):
@@ -449,11 +473,43 @@ def _doc_label(doc) -> str:
     return f"{name} p.{page}" if page is not None else name
 
 
-def extract_rag_claims(report: str) -> list[str]:
-    """원문 대조할 문장: '사업 아이디어'·'시장 규모' 장의 문장 (인용 번호는 떼고, 상한 적용)."""
-    claims = [CITATION_PATTERN.sub("", sentence).strip()
-              for section, sentence in _section_sentences(report) if _is_rag_section(section)]
-    return [c for c in claims if len(c) >= MIN_CLAIM_CHARS][:MAX_RAG_CLAIMS]
+def extract_rag_claims(report: str) -> list[tuple[str, list[int]]]:
+    """원문 대조할 문장: '사업 아이디어'·'시장 규모' 장의 문장과 그 인용 번호 (문장은 인용 번호를 떼고, 상한 적용).
+
+    인용 번호는 문장에 붙은 것을 쓰고, 없으면 같은 문단의 것을 쓴다(AI가 인용을 문단 끝에만 다는 경우가 많다).
+    """
+    claims = []
+    for section, sentence, paragraph in _section_sentences(report):
+        if not _is_rag_section(section):
+            continue
+        text = CITATION_PATTERN.sub("", sentence).strip()
+        cites = CITATION_PATTERN.findall(sentence) or CITATION_PATTERN.findall(paragraph)
+        if len(text) >= MIN_CLAIM_CHARS:
+            claims.append((text, list(dict.fromkeys(int(n) for n in cites))))
+    return claims[:MAX_RAG_CLAIMS]
+
+
+def _cited_chunks(cites: list[int], cited_map: dict[int, list[dict]]) -> list:
+    """문장이 인용한 출처의 근거 원문(snippet)을 검색 조각과 같은 모양(page_content, metadata)으로 만든다."""
+    chunks = []
+    for n in cites:
+        for src in cited_map.get(n, []):
+            if src.get("snippet"):
+                chunks.append(SimpleNamespace(page_content=src["snippet"],
+                                              metadata={"title": src.get("title", ""), "page": src.get("page"),
+                                                        "kind": src.get("kind", "")}))
+    return chunks
+
+
+def _merge_chunks(*groups: list) -> list:
+    """조각 목록을 합치되 본문이 같은 조각은 한 번만."""
+    merged, seen = [], set()
+    for chunk in (c for group in groups for c in group):
+        text = _chunk_text(chunk)
+        if text not in seen:
+            seen.add(text)
+            merged.append(chunk)
+    return merged
 
 
 def _pairs_of(data) -> set:
@@ -566,40 +622,48 @@ def rag_check(report: str, state: dict, retriever, judge_llm) -> tuple[list[dict
     """기술·시장 문장을 원래 문서와 대조한다 (Self-RAG 방식). (불일치 목록, 요약 정보) 반환.
 
     ① 검색 ② 관련성 검사 ③ 관련 없으면 검색어 재작성 후 재검색
-    ④ 관련 조각을 끝내 못 찾은 문장은 '판정 제외'(틀렸다고 하지 않음 — 오탐 방지)
-    ⑤ 찾은 문장만 근거성 검사: 수치가 원문에 있는가(코드) + 원문과 어긋나지 않는가(LLM 검수)
+    ④ 문장이 인용한 출처의 근거 원문(분석 에이전트가 실제로 읽은 조각)을 대조 근거에 더한다.
+       같은 시장을 다룬 다른 기관 문서만 검색돼 맞는 수치를 틀렸다고 하는 오탐을 막는다(독립 검색은 그대로 유지).
+    ⑤ 대조할 조각이 끝내 없는 문장은 '판정 제외'(틀렸다고 하지 않음 — 오탐 방지)
+    ⑥ 나머지는 근거성 검사: 수치가 조각 중 하나에 있는가(코드) + 조각과 어긋나지 않는가(LLM 검수)
        인터넷에서 온 칸(투자금 등)의 수치는 원문 문서에 없는 게 정상이라 건너뛴다.
     """
     claim_list = extract_rag_claims(report)
-    info = {"checked": 0, "sources": [], "not_found": 0, "rewritten": 0, "grounded": 0}
+    info = {"checked": 0, "sources": [], "not_found": 0, "rewritten": 0, "grounded": 0, "cited": 0}
     if not claim_list:
         return [], info
 
-    claims = dict(enumerate(claim_list, 1))
+    claims = {i: text for i, (text, _) in enumerate(claim_list, 1)}
     relevant, info["rewritten"] = retrieve_relevant(claims, retriever, judge_llm)
-    found = {i: c for i, c in claims.items() if relevant[i]}
+    cited_map = cited_source_map(report, state)
+    cited = {i: _cited_chunks(cites, cited_map) for i, (_, cites) in enumerate(claim_list, 1)}
+    evidence = {i: _merge_chunks(relevant[i], cited[i]) for i in claims}             # ④ 인용 출처 원문 추가
+    found = {i: c for i, c in claims.items() if evidence[i]}
     info["checked"] = len(claims)
     info["not_found"] = len(claims) - len(found)
-    info["sources"] = sorted({_doc_label(d) for i in found for d in relevant[i]})
+    info["cited"] = sum(1 for i in found if cited[i])
+    # 보고서 한계점에 적을 '원문' 이름: 검색한 문서 조각과 인용한 보고서만 (웹 기사 제목은 원문 목록에 넣지 않는다)
+    info["sources"] = sorted({_doc_label(d) for i in found for d in evidence[i]
+                              if (getattr(d, "metadata", {}) or {}).get("kind") != "web"})
 
     rag_pairs = _pairs_of({k: state.get(k) for k in RAG_STATE_KEYS})
     web_pairs = _pairs_of({k: state.get(k) for k in WEB_STATE_KEYS})
     mismatches = []
-    for i, claim in found.items():                                              # ⑤-1 수치 대조(코드)
-        chunk_pairs = {(q["value"], q["unit"]) for d in relevant[i] for q in parse_quantities(_chunk_text(d))}
+    for i, claim in found.items():                                              # ⑥-1 수치 대조(코드)
+        chunk_pairs = {(q["value"], q["unit"]) for d in evidence[i] for q in parse_quantities(_chunk_text(d))}
         for q in parse_quantities(claim):
             if not _needs_check(q) or q["unit"] == SCORE_UNIT:
                 continue
             from_web = _found_in(q, web_pairs) and not _found_in(q, rag_pairs)
             if from_web or _found_in(q, chunk_pairs):
                 continue
-            where = ", ".join(sorted({_doc_label(d) for d in relevant[i]}))
+            where = ", ".join(sorted({_doc_label(d) for d in evidence[i]}))
             mismatches.append({"kind": "rag_number", "value": q["surface"], "surface": q["surface"],
                                "context": f"원문({where})의 수치와 다름 · {claim[:40]}"})
 
-    if judge_llm is not None and found:                                        # ⑤-2 근거성 검사(LLM 검수)
+    if judge_llm is not None and found:                                        # ⑥-2 근거성 검사(LLM 검수)
         logger.info("[원문 대조] LLM 검수 호출 (원문을 찾은 문장 %d건)", len(found))
-        blocks = [f"[주장 {i}] {c}\n[원문 조각]\n" + "\n".join(_chunk_text(d) for d in relevant[i])
+        blocks = [f"[주장 {i}] {c}\n[원문 조각]\n" + "\n".join(_chunk_text(d) for d in evidence[i])
                   for i, c in found.items()]
         for item in _ask_json(judge_llm, RAG_JUDGE_SYSTEM, blocks):
             try:
@@ -626,18 +690,21 @@ def mark_unverified(report: str, mismatches: list[dict]) -> str:
 
     REFERENCE 앞 본문에서만 표시한다(출처 URL의 숫자를 건드리지 않으려는 것).
     서술 주장(claim)은 오탐 가능성이 있어 본문을 건드리지 않고 한계점에만 적는다.
+    실제로 표시했는지는 m["marked"]에 남긴다(한계점 문장이 사실과 어긋나지 않게).
     """
     head, sep, tail = report.partition(REFERENCE_HEADING)
     for m in mismatches:
         if m["kind"] not in MARKABLE_KINDS or not m.get("surface"):
             continue
         if m["kind"] == "citation":  # 존재하지 않는 인용 번호는 표시로 바꿔 넣는다
+            m["marked"] = m["surface"] in head
             head = head.replace(m["surface"], MARK_BAD_CITATION)
             continue
         # 같은 표현의 첫 등장 한 곳에만 표시. 앞뒤가 숫자인 경우(1200 속의 120)는 건너뛴다
         pattern = re.compile(r"(?<![\d.,])" + re.escape(m["surface"])
                              + r"(?![\d])(?!" + re.escape(MARK_UNVERIFIED) + ")")
-        head = pattern.sub(lambda x: x.group(0) + MARK_UNVERIFIED, head, count=1)
+        head, count = pattern.subn(lambda x: x.group(0) + MARK_UNVERIFIED, head, count=1)
+        m["marked"] = m.get("marked", False) or bool(count)
     return head + sep + tail
 
 
@@ -656,10 +723,16 @@ def build_verification_note(result: dict, scores: dict) -> str:
                      f"불일치가 없었습니다.")
     else:
         # 인용 번호("[9]")는 진짜 인용처럼 보이지 않게 '출처 번호 9'로 풀어 쓴다
-        shown = {m["value"] if not m["value"].startswith("[") else f"출처 번호 {m['value'][1:-1]}"
-                 for m in rule_problems}
-        lines.append(f"- 수치·표기 검증: 재작성 후에도 분석 자료에서 확인되지 않은 항목이 있어 "
-                     f"'{MARK_UNVERIFIED}'로 표시했습니다. ({', '.join(sorted(shown))})")
+        def label(m):
+            return m["value"] if not m["value"].startswith("[") else f"출처 번호 {m['value'][1:-1]}"
+        marked = sorted({label(m) for m in rule_problems if m.get("marked")})
+        unmarked = sorted({label(m) for m in rule_problems if not m.get("marked")})
+        text = "- 수치·표기 검증: 재작성 후에도 분석 자료에서 확인되지 않은 항목이 있습니다."
+        if marked:
+            text += f" 본문에 '{MARK_UNVERIFIED}'로 표시: {', '.join(marked)}."
+        if unmarked:
+            text += f" 본문 표시 없이 여기에만 기록: {', '.join(unmarked)}."
+        lines.append(text)
 
     rag = result.get("rag") or {}
     if rag.get("checked"):
@@ -667,8 +740,13 @@ def build_verification_note(result: dict, scores: dict) -> str:
         docs = ", ".join(rag.get("sources", [])[:4]) or "원문"
         head = (f"- 원문 대조(RAG): 기술·시장 문장 {rag['checked']}건 중 관련 원문을 찾은 {found}건을 "
                 f"원문({docs})과 대조")
+        notes = []
         if rag.get("rewritten"):
-            head += f"(검색어 재작성 {rag['rewritten']}건 포함)"
+            notes.append(f"검색어 재작성 {rag['rewritten']}건")
+        if rag.get("cited"):
+            notes.append(f"인용 출처의 근거 원문 함께 대조 {rag['cited']}건")
+        if notes:
+            head += f"({', '.join(notes)} 포함)"
         if not rag_problems:
             lines.append(head + "한 결과 불일치가 없었습니다.")
         else:
@@ -690,6 +768,9 @@ def build_verification_note(result: dict, scores: dict) -> str:
                          f"뒷받침을 확인하지 못했습니다.")
             for m in claim_problems[:MAX_NOTED_CLAIMS]:
                 lines.append(f"  - \"{m['value']}\" — {m['context']}")
+    elif result.get("judge_ran"):  # 검수는 돌렸지만 대상이 없었다 (예: 출처가 없는 '추천 기업 없음' 보고서)
+        lines.append("- 주장 검증: 출처 번호가 달린 서술 문장이 없어 LLM 검수 대상이 없었습니다. "
+                     "숫자가 없는 서술은 검증하지 않았습니다.")
     else:
         lines.append("- 주장 검증: LLM 검수를 실행하지 않아 숫자가 없는 서술 주장은 검증하지 않았습니다.")
 
@@ -733,13 +814,13 @@ def verifier_node(state: dict, judge_llm=None, retriever=None) -> dict:
     logger.info("[사실 검증] 정답지 수량 %d개 확보", len(evidence["pairs"]))
     mismatches, checked = find_quantity_mismatches(report, evidence)
     mismatches += find_wording_problems(report, state)
-    mismatches += check_citations(report, collect_sources(state) if _is_recommend_mode(state) else [])
+    mismatches += check_citations(report)
     mismatches += check_total_score(scores)
 
     judge = _resolve_judge(judge_llm)
 
     # 2단계: RAG 원문 대조 (문서에서 온 기술·시장 내용)
-    rag_info = {"checked": 0, "sources": [], "not_found": 0, "rewritten": 0, "grounded": 0}
+    rag_info = {"checked": 0, "sources": [], "not_found": 0, "rewritten": 0, "grounded": 0, "cited": 0}
     company_name = (state.get("company") or {}).get("name")
     search = _resolve_retriever(retriever, company_name)
     if search is not None:
@@ -757,7 +838,7 @@ def verifier_node(state: dict, judge_llm=None, retriever=None) -> dict:
                 checked, rag_info["checked"], judged, len(mismatches), "통과" if passed else "불일치")
 
     result = {"passed": passed, "mismatches": mismatches, "checked": checked, "judged": judged,
-              "rag": rag_info}
+              "judge_ran": judge is not None, "rag": rag_info}
     update = {"verify_result": result}
 
     exhausted = not passed and state.get("retry_count", 0) >= MAX_RETRY
@@ -768,5 +849,7 @@ def verifier_node(state: dict, judge_llm=None, retriever=None) -> dict:
             logger.warning("[사실 검증] 재작성 후에도 불일치 → '확인 필요' 표시 후 종료")
             final_report = mark_unverified(final_report, mismatches)
             result["finalized"] = True
-        update["report"] = add_verification_note(final_report, build_verification_note(result, scores))
+        # 추천 기업이 없으면 scores는 마지막 후보의 것이라 '정보 부족 항목'을 보고서 전체 얘기처럼 쓰면 안 된다
+        note_scores = scores if _is_recommend_mode(state) else {}
+        update["report"] = add_verification_note(final_report, build_verification_note(result, note_scores))
     return update
