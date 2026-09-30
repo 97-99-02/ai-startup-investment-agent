@@ -113,10 +113,19 @@ explorer → explorer는 조건 미충족 시 다음 후보, explorer → report
 ## Usage
 ```bash
 uv sync                           # uv가 없으면: pip install -r requirements.txt
-cp .env.example .env              # 키 입력
+touch .env                        # 아래 키를 넣는다 (.env·.env.*는 git에 올리지 않음)
 uv run python -m rag.ingest       # 최초 1회: 문서 임베딩 → vectorstore/
 uv run python app.py
 ```
+
+`.env`에 넣을 값 (이름만, 값은 각자 발급):
+
+| 변수 | 용도 |
+|---|---|
+| `OPENAI_API_KEY` | 분석·판단·보고서 LLM (gpt-4.1-mini, gpt-4.1) |
+| `TAVILY_API_KEY` | 웹 검색 |
+| `HF_TOKEN` | KURE-v1 임베딩 모델 다운로드 |
+| `LANGSMITH_API_KEY`, `LANGSMITH_TRACING=true`, `LANGSMITH_PROJECT` | 실행 추적 (선택) |
 
 ## Contributors
 - 강지수 : 시장성 평가 에이전트
