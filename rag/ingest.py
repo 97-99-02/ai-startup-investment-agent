@@ -12,6 +12,7 @@ from pypdf import PdfReader
 
 from config import CHROMA_DIR, DOC_TYPES
 from rag.catalog import lookup
+from rag.ocr_fix import ocr_path
 from rag.embeddings import get_embeddings
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,7 +27,8 @@ def load_documents() -> list[Document]:
         for pdf in sorted((ROOT / "data" / doc_type).glob("*.pdf")):
             info = lookup(pdf.name)  # 제목·발행기관·연도·URL (설계 2.4 메타데이터)
             for page_no, page in enumerate(PdfReader(pdf).pages, start=1):
-                text = page.extract_text() or ""
+                fixed = ocr_path(pdf.name, page_no)  # 글꼴 손상 쪽은 OCR 텍스트를 쓴다 (rag/ocr_fix.py)
+                text = fixed.read_text(encoding="utf-8") if fixed.exists() else (page.extract_text() or "")
                 for chunk in splitter.split_text(text):
                     if len(chunk.strip()) < 100:  # 쪽번호·머리말 조각 제외
                         continue

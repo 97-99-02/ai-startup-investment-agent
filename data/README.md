@@ -23,3 +23,11 @@ ETRI 보고서 원문: https://ettrends.etri.re.kr
 | exim_dc_aisemi_2026.pdf | 데이터센터용 AI반도체 시장 현황 및 전망 | 한국수출입은행 해외경제연구소 (2026) | 53 |
 | kdb_aisemi_tech_industry.pdf | AI 반도체 기술 및 산업 동향 | KDB미래전략연구소 (2024) | 25 |
 | kita_semi_2026.pdf | 반도체 전방산업 업황 진단 및 2026년 전망 | 한국무역협회 (2025) | 9 |
+
+## OCR 보정
+
+`kdb_aisemi_tech_industry.pdf`는 Type 3 글꼴 손상으로 pypdf·pdftotext·PyMuPDF 모두 일부 숫자와 영문을 깨뜨린다
+(예: 원문 "'26년 3,400백만달러 (YOLE('23.9))" → 추출 "'2/HxT67년 ... (/HxT'p/HxT55LE"). 손상된 20쪽은
+macOS 기본 OCR(Apple Vision)로 다시 읽어 `ocr/kdb_aisemi_tech_industry/pNNN.txt`에 저장했고, `rag/ingest.py`는 해당 쪽에 이 텍스트를 쓴다.
+다시 만들려면 macOS에서 `uv run --with ocrmac --with pymupdf python -m rag.ocr_fix`.
+
