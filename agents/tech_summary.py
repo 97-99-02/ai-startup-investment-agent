@@ -16,7 +16,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from agents.web import search_many, source_date, to_source as web_to_source
-from config import MODEL_ANALYZE
+from config import LLM_ATTEMPTS, LLM_MAX_TOKENS, LLM_SEED, MODEL_ANALYZE
 from rag.retriever import get_retriever, to_source as report_to_source
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,8 @@ class IndustryDraft(BaseModel):
 
 
 def _llm(schema):
-    return ChatOpenAI(model=MODEL_ANALYZE, temperature=0).with_structured_output(schema)
+    # 주장 추출은 근거 최대 24건에서 주장을 수십 개 낼 수 있어 공통 상한(4,096토큰)의 두 배를 둔다
+    return ChatOpenAI(model=MODEL_ANALYZE, temperature=0, seed=LLM_SEED, max_tokens=LLM_MAX_TOKENS * 2).with_structured_output(schema).with_retry(stop_after_attempt=LLM_ATTEMPTS)
 
 
 def _compact(value: str) -> str:
@@ -292,7 +293,7 @@ def _industry_context(name: str, segment: str, claims: list[Claim],
     query = f"{segment} AI 반도체 공정 세대 성능 전력 효율 TOPS/W 개발 단계 {technical_facts}"
     try:
         docs = get_retriever("tech", k=5).invoke(query)
-    except FileNotFoundError as exc:
+    except Exception as exc:  # noqa: BLE001 - 벡터 DB 없음·임베딩 로드 실패 등. 웹 사실은 이미 모았으니 해석만 건너뛴다
         logger.warning("기술 요약 업계 RAG 사용 불가: %s", exc)
         return [], [], "retrieval_unavailable", {"query": query, "error": str(exc), "retrieved_reports": 0}
     reports = _merge([{"kind": "report", "source": d, "text": d.page_content,
