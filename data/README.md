@@ -31,6 +31,10 @@ ETRI 보고서 원문: https://ettrends.etri.re.kr
 macOS 기본 OCR(Apple Vision)로 다시 읽어 `ocr/kdb_aisemi_tech_industry/pNNN.txt`에 저장했고, `rag/ingest.py`는 해당 쪽에 이 텍스트를 쓴다.
 다시 만들려면 macOS에서 `uv run --with ocrmac --with pymupdf python -m rag.ocr_fix`.
 
+OCR은 그래프 눈금·값을 한 줄씩 위치 순서대로 읽어, 어느 연도·분야의 값인지 알 수 없게 뒤섞는다.
+`rag/ingest.py`는 적재할 때 숫자만 있는 줄이 3줄 이상 이어지는 부분을 그래프로 보고 뺀다(4·5·17·21쪽, 120줄).
+표는 숫자와 글자 줄이 번갈아 나와 그대로 남는다(예: 7쪽 MLPerf 결과표).
+
 OCR도 소수점을 빠뜨리는 경우가 있어, pypdf 추출 결과(손상되지 않은 부분)와 소수를 대조했다. 원문으로 확인된 두 곳만 직접 고쳤다.
 - p004: "전년 대비 545% 증가" → "54.5%"
 - p021: "(중국) 923" → "92.3"
