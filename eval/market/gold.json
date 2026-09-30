@@ -1,0 +1,642 @@
+{
+  "_note": [
+    "시장성 평가 정답지 초안. find_candidates.py 결과를 보고 사람이 확인해 확정한다.",
+    "chunk_id는 rag.ingest.load_documents() 순서(OCR 보정 반영, 청크 429개 기준). 문서·청크 설정이 바뀌면 다시 확인한다.",
+    "company.name은 프롬프트 표시용이다. 검색 질의에는 들어가지 않는다.",
+    "primary=true: 반드시 뽑아야 하는 대표 수치 (재현율 분모). primary=false: 뽑혀도 오답이 아닌 해당 분야 수치 (정밀도 계산에만 인정).",
+    "chunk_ids: 수치가 나오는 청크. 이 중 하나만 LLM에 들어가면 된다.",
+    "context_ids: 표 제목·단위처럼 수치 해석에 함께 필요한 청크 (청크가 갈라진 경우만)."
+  ],
+  "segments": {
+    "데이터센터": {
+      "company": {
+        "name": "퓨리오사AI",
+        "segment": "데이터센터"
+      },
+      "figures": [
+        {
+          "kind": "시장규모",
+          "value": "1,240억 달러",
+          "year": "2024",
+          "scope": "데이터센터용 AI반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            267,
+            276
+          ],
+          "primary": true
+        },
+        {
+          "kind": "시장규모",
+          "value": "8,600억 달러",
+          "year": "2030",
+          "scope": "데이터센터용 AI반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            267,
+            276
+          ],
+          "primary": true
+        },
+        {
+          "kind": "성장률",
+          "value": "38%",
+          "year": "2024~2030",
+          "scope": "데이터센터용 AI반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            267,
+            276
+          ],
+          "primary": true
+        },
+        {
+          "kind": "시장규모",
+          "value": "2,090억 달러",
+          "year": "2024",
+          "scope": "데이터센터용 반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            424
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "4,920억 달러",
+          "year": "2030",
+          "scope": "데이터센터용 반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            424
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "15.3%",
+          "year": "2024~2030",
+          "scope": "데이터센터용 반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            424
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "1,665억 달러",
+          "year": "2025",
+          "scope": "GPU (데이터센터용 AI반도체 내)",
+          "doc_type": "market",
+          "chunk_ids": [
+            333,
+            334
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "5,035억 달러",
+          "year": "2030",
+          "scope": "GPU (데이터센터용 AI반도체 내)",
+          "doc_type": "market",
+          "chunk_ids": [
+            333,
+            334
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "25%",
+          "year": "2025~2030",
+          "scope": "GPU (데이터센터용 AI반도체 내)",
+          "doc_type": "market",
+          "chunk_ids": [
+            333,
+            334
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "194억 달러",
+          "year": "2025",
+          "scope": "하이퍼스케일러 ASIC",
+          "doc_type": "market",
+          "chunk_ids": [
+            334
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "2,265억 달러",
+          "year": "2030",
+          "scope": "하이퍼스케일러 ASIC",
+          "doc_type": "market",
+          "chunk_ids": [
+            334
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "65%",
+          "year": "2025~2030",
+          "scope": "하이퍼스케일러 ASIC",
+          "doc_type": "market",
+          "chunk_ids": [
+            334
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "90억 달러",
+          "year": "2025",
+          "scope": "외부 판매용 AI반도체 (데이터센터)",
+          "doc_type": "market",
+          "chunk_ids": [
+            334
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "950억 달러",
+          "year": "2030",
+          "scope": "외부 판매용 AI반도체 (데이터센터)",
+          "doc_type": "market",
+          "chunk_ids": [
+            334
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "66%",
+          "year": "2025~2030",
+          "scope": "외부 판매용 AI반도체 (데이터센터)",
+          "doc_type": "market",
+          "chunk_ids": [
+            334
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "5.3%",
+          "year": "2026~2029",
+          "scope": "클라우드 및 데이터센터용 AI 반도체",
+          "doc_type": "tech",
+          "chunk_ids": [
+            235
+          ],
+          "primary": false
+        }
+      ]
+    },
+    "엣지": {
+      "company": {
+        "name": "모빌린트",
+        "segment": "엣지"
+      },
+      "figures": [
+        {
+          "kind": "시장규모",
+          "value": "592억 달러",
+          "year": "2024",
+          "scope": "온디바이스용 AI반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            267,
+            276
+          ],
+          "primary": true
+        },
+        {
+          "kind": "시장규모",
+          "value": "1,430억 달러",
+          "year": "2030",
+          "scope": "온디바이스용 AI반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            267,
+            276
+          ],
+          "primary": true
+        },
+        {
+          "kind": "성장률",
+          "value": "16%",
+          "year": "2024~2030",
+          "scope": "온디바이스용 AI반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            267,
+            276,
+            277
+          ],
+          "primary": true
+        },
+        {
+          "kind": "성장률",
+          "value": "12.6%",
+          "year": "2026~2029",
+          "scope": "On-device AI 반도체",
+          "doc_type": "tech",
+          "chunk_ids": [
+            235
+          ],
+          "primary": true
+        },
+        {
+          "kind": "성장률",
+          "value": "62.8%",
+          "year": "2023~2028",
+          "scope": "엣지디바이스 중 PC용 AI 반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            369
+          ],
+          "primary": false
+        }
+      ]
+    },
+    "차량용": {
+      "company": {
+        "name": "보스반도체",
+        "segment": "차량용"
+      },
+      "figures": [
+        {
+          "kind": "시장규모",
+          "value": "45.8억 달러",
+          "year": "2023",
+          "scope": "자율주행차용 AI반도체",
+          "doc_type": "tech",
+          "chunk_ids": [
+            63
+          ],
+          "primary": true
+        },
+        {
+          "kind": "시장규모",
+          "value": "96.7억 달러",
+          "year": "2028",
+          "scope": "자율주행차용 AI반도체",
+          "doc_type": "tech",
+          "chunk_ids": [
+            63
+          ],
+          "primary": true
+        },
+        {
+          "kind": "성장률",
+          "value": "16%",
+          "year": "2023~2028",
+          "scope": "자율주행차용 AI반도체",
+          "doc_type": "tech",
+          "chunk_ids": [
+            63,
+            66
+          ],
+          "primary": true
+        },
+        {
+          "kind": "성장률",
+          "value": "11%",
+          "year": "2023~2028",
+          "scope": "자율주행차 내부용 AI반도체",
+          "doc_type": "tech",
+          "chunk_ids": [
+            65,
+            66
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "26%",
+          "year": "2023~2028",
+          "scope": "자율주행차용 엣지 클라우드 AI반도체",
+          "doc_type": "tech",
+          "chunk_ids": [
+            66
+          ],
+          "context_ids": [
+            65
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "18%",
+          "year": "2023~2028",
+          "scope": "자율주행차용 데이터센터 AI반도체",
+          "doc_type": "tech",
+          "chunk_ids": [
+            66
+          ],
+          "context_ids": [
+            65
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "4,582",
+          "year": "2023",
+          "scope": "자율주행차용 AI반도체 합계 (단위: 백만 달러)",
+          "doc_type": "tech",
+          "chunk_ids": [
+            66
+          ],
+          "context_ids": [
+            65
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "9,671",
+          "year": "2028",
+          "scope": "자율주행차용 AI반도체 합계 (단위: 백만 달러)",
+          "doc_type": "tech",
+          "chunk_ids": [
+            66
+          ],
+          "context_ids": [
+            65
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "20.4%",
+          "year": "",
+          "scope": "자동차 내부용 AI반도체 (OMDIA 상향 조정치)",
+          "doc_type": "tech",
+          "chunk_ids": [
+            62
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "17.8%",
+          "year": "",
+          "scope": "자동차 엣지 클라우드용 AI반도체 (OMDIA 하향 조정치)",
+          "doc_type": "tech",
+          "chunk_ids": [
+            62
+          ],
+          "primary": false
+        }
+      ]
+    },
+    "인프라": {
+      "company": {
+        "name": "파네시아",
+        "segment": "인프라"
+      },
+      "figures": [
+        {
+          "kind": "시장규모",
+          "value": "14백만달러",
+          "year": "2023",
+          "scope": "CXL 메모리",
+          "doc_type": "market",
+          "chunk_ids": [
+            391
+          ],
+          "primary": true
+        },
+        {
+          "kind": "시장규모",
+          "value": "3,400백만달러",
+          "year": "2026",
+          "scope": "CXL 메모리",
+          "doc_type": "market",
+          "chunk_ids": [
+            391
+          ],
+          "primary": true
+        },
+        {
+          "kind": "시장규모",
+          "value": "170억 달러",
+          "year": "2024",
+          "scope": "HBM",
+          "doc_type": "tech",
+          "chunk_ids": [
+            187
+          ],
+          "primary": true
+        },
+        {
+          "kind": "시장규모",
+          "value": "980억 달러",
+          "year": "2030",
+          "scope": "HBM",
+          "doc_type": "tech",
+          "chunk_ids": [
+            187
+          ],
+          "primary": true
+        },
+        {
+          "kind": "성장률",
+          "value": "33%",
+          "year": "2024~2030",
+          "scope": "HBM",
+          "doc_type": "tech",
+          "chunk_ids": [
+            187
+          ],
+          "primary": true
+        },
+        {
+          "kind": "시장규모",
+          "value": "5,516억 달러",
+          "year": "2026",
+          "scope": "메모리",
+          "doc_type": "tech",
+          "chunk_ids": [
+            184
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "100억 달러",
+          "year": "2024",
+          "scope": "LPDDR",
+          "doc_type": "tech",
+          "chunk_ids": [
+            197
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "243억 달러",
+          "year": "2033",
+          "scope": "LPDDR",
+          "doc_type": "tech",
+          "chunk_ids": [
+            197
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "2,571억 달러",
+          "year": "2026",
+          "scope": "메모리 반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            426
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "33.8%",
+          "year": "2026",
+          "scope": "메모리 반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            426
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "120억 달러",
+          "year": "2030",
+          "scope": "HBF",
+          "doc_type": "tech",
+          "chunk_ids": [
+            203
+          ],
+          "primary": false
+        }
+      ]
+    },
+    "기타": {
+      "company": {
+        "name": "엑시나",
+        "segment": "기타"
+      },
+      "figures": [
+        {
+          "kind": "시장규모",
+          "value": "1,830억 달러",
+          "year": "2024",
+          "scope": "AI반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            267,
+            276
+          ],
+          "primary": true
+        },
+        {
+          "kind": "시장규모",
+          "value": "1조 달러",
+          "year": "2030",
+          "scope": "AI반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            267,
+            276
+          ],
+          "primary": true
+        },
+        {
+          "kind": "성장률",
+          "value": "33%",
+          "year": "2024~2030",
+          "scope": "AI반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            267,
+            276
+          ],
+          "primary": true
+        },
+        {
+          "kind": "시장규모",
+          "value": "537억달러",
+          "year": "2023",
+          "scope": "글로벌 AI 반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            369
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "1,590억달러",
+          "year": "2028",
+          "scope": "글로벌 AI 반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            369,
+            364
+          ],
+          "primary": false
+        },
+        {
+          "kind": "성장률",
+          "value": "24%",
+          "year": "2023~2028",
+          "scope": "글로벌 AI 반도체",
+          "doc_type": "market",
+          "chunk_ids": [
+            369,
+            364
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "1.4조 달러",
+          "year": "2030",
+          "scope": "AI반도체 (AMD 전망)",
+          "doc_type": "market",
+          "chunk_ids": [
+            277
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "793억달러",
+          "year": "2023",
+          "scope": "AI 가속기",
+          "doc_type": "market",
+          "chunk_ids": [
+            370
+          ],
+          "primary": false
+        },
+        {
+          "kind": "시장규모",
+          "value": "2,029억 달러",
+          "year": "2027",
+          "scope": "AI 가속기",
+          "doc_type": "market",
+          "chunk_ids": [
+            370
+          ],
+          "primary": false
+        }
+      ]
+    }
+  }
+}
