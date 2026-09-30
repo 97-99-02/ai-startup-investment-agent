@@ -194,7 +194,13 @@ def _without_tech_trace(data: dict) -> dict:
     """출처 ID·URL 등 추적용 메타데이터를 수치 정답지에서 제외한다."""
     tech = data.get("tech_summary")
     if isinstance(tech, dict):
-        return {**data, "tech_summary": {k: v for k, v in tech.items() if k != "evidence"}}
+        clean = {k: v for k, v in tech.items() if k not in ("evidence", "diagnostics")}
+        if "industry_context" in clean:
+            clean["industry_context"] = [
+                {k: v for k, v in insight.items() if k in ("topic", "text", "comparison")}
+                for insight in clean["industry_context"]
+            ]
+        return {**data, "tech_summary": clean}
     return data
 
 
